@@ -1,0 +1,17 @@
+instalar sdk net
+sudo apt update
+sudo apt install -y dotnet-sdk-8.0
+
+consultar version net
+dotnet --version
+
+mantener back en caliente
+dotnet watch run
+
+setear credenciales get
+git config --global user.name "Your Name"
+git config --global user.email "your.email@example.com"
+
+verificar credenciales git
+git config --global user.name
+git config --global user.email
