@@ -1,6 +1,16 @@
-@back_HostAddress = http://localhost:5146
+### Petición de Login (guarda el token en @authToken)
+@host = https://localhost:7000
+@contentType = application/json
 
-GET {{back_HostAddress}}/weatherforecast/
-Accept: application/json
+# @name loginRequest
+POST {{host}}/api/auth/login
+Content-Type: {{contentType}}
 
-###
+{
+  "email": "tu_email@ejemplo.com",
+  "password": "tu_password"
+}
+
+### Petición segura usando el token
+GET {{host}}/api/algun-endpoint-seguro
+Authorization: Bearer {{loginRequest.response.body.token}}

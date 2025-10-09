@@ -1,28 +1,56 @@
-using FabricaDePastas.Back.Data;
+using System.Text;
+using back.Configuration;
+using back.Repositories;
+using back.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+builder.Services.Configure<MongoDbConfiguration>(builder.Configuration.GetSection("MongoDbConfiguration"));
+
+// Contexto Mongo y repo
+builder.Services.AddSingleton<MongoDbContext>();
+
+// Repositorios
+builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
+builder.Services.AddScoped<IProductoRepository, ProductoRepository>();
+
+// Servicios
+builder.Services.AddScoped<UsuarioService>();
+builder.Services.AddScoped<IProductoService, ProductoService>();
+
+// Configuración de Autenticación JWT
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+}).AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? ""))
+    };
+});
+
+builder.Services.AddAuthorization();
 
 // Controllers + Swagger
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Bind de opciones Mongo desde appsettings.json
-builder.Services.Configure<MongoOptions>(builder.Configuration.GetSection("Mongo"));
+WebApplication app = builder.Build();
 
-// Contexto Mongo y repo
-builder.Services.AddSingleton<MongoDb>();
-builder.Services.AddSingleton<IProductoRepo, ProductoRepoMongo>();
-
-var app = builder.Build();
-
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-app.UseHttpsRedirection();
 app.MapControllers();
+app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.Run();

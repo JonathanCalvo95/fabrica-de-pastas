@@ -1,44 +1,58 @@
-using FabricaDePastas.Back.Data;
-using FabricaDePastas.Back.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using back.Entities;
+using back.Enums;
+using back.Services;
 
-namespace FabricaDePastas.Back.Controllers;
+namespace back.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class ProductosController(IProductoRepo repo) : ControllerBase
+[Authorize]
+public class ProductosController(IProductoService service) : ControllerBase
 {
     [HttpGet]
-    public ActionResult<IEnumerable<Producto>> GetAll() => Ok(repo.GetAll());
+    public async Task<ActionResult<IEnumerable<Producto>>> GetAll()
+    {
+        IEnumerable<Producto> productos = await service.GetAllAsync();
+        return Ok(productos);
+    }
 
     [HttpGet("{id}")]
-    public ActionResult<Producto> GetById(string id)
+    public async Task<ActionResult<Producto>> GetById(string id)
     {
-        var p = repo.GetById(id);
-        return p is null ? NotFound() : Ok(p);
+        Producto? producto = await service.GetByIdAsync(id);
+        return producto is null ? NotFound() : Ok(producto);
     }
 
     [HttpPost]
-    public ActionResult<Producto> Create([FromBody] Producto p)
+    [Authorize(Roles = nameof(TipoRol.Administrador))]
+    public async Task<ActionResult<Producto>> Create([FromBody] Producto p)
     {
-        if (string.IsNullOrWhiteSpace(p.Nombre))
-            return BadRequest("Nombre es obligatorio.");
-
-        var created = repo.Add(p);
-        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+        try
+        {
+            await service.AddAsync(p);
+            return CreatedAtAction(nameof(GetById), new { id = p.Id }, p);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     [HttpPut("{id}")]
-    public IActionResult Update(string id, [FromBody] Producto p)
+    [Authorize(Roles = nameof(TipoRol.Administrador) + "," + nameof(TipoRol.Productor))]
+    public async Task<IActionResult> Update(string id, [FromBody] Producto p)
     {
-        var ok = repo.Update(id, p);
+        bool ok = await service.UpdateAsync(id, p);
         return ok ? NoContent() : NotFound();
     }
 
     [HttpDelete("{id}")]
-    public IActionResult Delete(string id)
+    [Authorize(Roles = nameof(TipoRol.Administrador))]
+    public async Task<IActionResult> Delete(string id)
     {
-        var ok = repo.Delete(id);
+        bool ok = await service.DeleteAsync(id);
         return ok ? NoContent() : NotFound();
     }
 }

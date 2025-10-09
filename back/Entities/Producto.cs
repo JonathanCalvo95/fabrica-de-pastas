@@ -1,23 +1,23 @@
+using back.Enums;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace FabricaDePastas.Back.Entities;
+namespace back.Entities;
 
+[BsonIgnoreExtraElements]
 public class Producto
 {
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
-    public string Id { get; set; } = null!; // Mongo genera ObjectId si no lo seteás
+    public string Id { get; set; } = string.Empty;
 
-    [BsonElement("nombre")]
     public string Nombre { get; set; } = string.Empty;
-
-    [BsonElement("categoria")]
-    public string Categoria { get; set; } = string.Empty;
-
-    [BsonElement("precio")]
+    public string Descripcion { get; set; } = string.Empty;
     public decimal Precio { get; set; }
-
-    [BsonElement("activo")]
-    public bool Activo { get; set; } = true;
+    public UnidadMedida Medida { get; set; }
+    public double Stock { get; set; }
+    public TipoProducto Tipo { get; set; }
+    public bool Activo { get; set; }
+    public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
+    public DateTime FechaActualizacion { get; set; } = DateTime.UtcNow;
 }
