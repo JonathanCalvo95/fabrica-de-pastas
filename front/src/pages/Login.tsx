@@ -1,22 +1,30 @@
-import React from "react";
+import React, { useState } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
-import { TextField, Button, Container, Box, Typography } from "@mui/material";
-
-interface ILoginFormData {
-  email: string;
-  password: string;
-}
+import { TextField, Button, Container, Box, Typography, Alert } from "@mui/material";
+import { login, type ILoginRequest } from "../api/auth";
 
 const Login: React.FC = () => {
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<ILoginFormData>();
+  } = useForm<ILoginRequest>();
 
-  const onSubmit: SubmitHandler<ILoginFormData> = (data) => {
-    console.log("Login data:", data);
-    // Implement your authentication logic here (e.g., API call)
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+  const onSubmit: SubmitHandler<ILoginRequest> = async (data) => {
+    try {
+      const response = await login(data);
+      const { token } = response;
+      
+      localStorage.setItem("authToken", token);
+      
+      console.log("Login successful, token received:", token);
+      window.location.href = "/";
+    } catch (error) {
+      setLoginError("Usuario o contraseña inválidos.");
+      console.error("Login failed:", error);
+    }
   };
 
   return (
@@ -30,7 +38,7 @@ const Login: React.FC = () => {
         }}
       >
         <Typography component="h1" variant="h5">
-          Sign In
+          Fabrica de Pastas
         </Typography>
         <Box
           component="form"
@@ -38,17 +46,18 @@ const Login: React.FC = () => {
           noValidate
           sx={{ mt: 1 }}
         >
+          {loginError && <Alert severity="error" sx={{ mb: 2 }}>{loginError}</Alert>}
           <TextField
             margin="normal"
             required
             fullWidth
-            id="email"
-            label="Email Address"
-            autoComplete="email"
+            id="username"
+            label="Username"
+            autoComplete="username"
             autoFocus
-            {...register("email", { required: "Email is required" })}
-            error={!!errors.email}
-            helperText={errors.email?.message}
+            {...register("username", { required: "Username is required" })}
+            error={!!errors.username}
+            helperText={errors.username?.message}
           />
           <TextField
             margin="normal"
@@ -68,7 +77,7 @@ const Login: React.FC = () => {
             variant="contained"
             sx={{ mt: 3, mb: 2 }}
           >
-            Sign In
+            Ingresar
           </Button>
         </Box>
       </Box>
