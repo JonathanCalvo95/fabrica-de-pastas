@@ -16,12 +16,12 @@ public class UsuarioService(IUsuarioRepository repo, IConfiguration configuratio
     public async Task<Usuario?> AuthenticateAsync(string username, string password)
     {
         Usuario? usuario = await _repo.GetByUsernameAsync(username);
-        
+
         if (usuario == null || !BCrypt.Net.BCrypt.Verify(password, usuario.Password))
         {
             return null;
         }
-        
+
         return usuario;
     }
 
@@ -40,32 +40,34 @@ public class UsuarioService(IUsuarioRepository repo, IConfiguration configuratio
             Password = hashedPassword,
             Rol = rol
         };
-        
+
         await _repo.AddAsync(usuario);
     }
-    
+
     public string GenerateJwtToken(Usuario usuario)
     {
-        JwtSecurityTokenHandler tokenHandler = new JwtSecurityTokenHandler();
-        byte[] key = Encoding.ASCII.GetBytes(_configuration["Jwt:Key"] ?? "");
+        var key = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!)
+        );
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        List<Claim> claims = new List<Claim>
+        var claims = new List<Claim>
         {
+            new Claim(JwtRegisteredClaimNames.Sub, usuario.Id),
             new Claim(ClaimTypes.Name, usuario.Username),
             new Claim(ClaimTypes.Role, usuario.Rol.ToString()),
-            new Claim(JwtRegisteredClaimNames.Sub, usuario.Id)
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
-        SecurityTokenDescriptor tokenDescriptor = new SecurityTokenDescriptor
-        {
-            Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.UtcNow.AddHours(1),
-            Issuer = _configuration["Jwt:Issuer"],
-            Audience = _configuration["Jwt:Audience"],
-            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
-        };
+        var token = new JwtSecurityToken(
+            issuer: _configuration["Jwt:Issuer"],
+            audience: _configuration["Jwt:Audience"],
+            claims: claims,
+            expires: DateTime.UtcNow.AddHours(4),
+            signingCredentials: creds
+        );
 
-        SecurityToken token = tokenHandler.CreateToken(tokenDescriptor);
-        return tokenHandler.WriteToken(token);
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
+
 }

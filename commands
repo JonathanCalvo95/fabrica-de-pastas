@@ -29,3 +29,5 @@ ctrl + shift + i ordenar codigo
 
 dotnet build
 dotnet run
+dotnet clean
+dotnet build -c Debug

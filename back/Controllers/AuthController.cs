@@ -1,6 +1,7 @@
 using back.Entities;
 using back.Enums;
 using back.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace back.Controllers;
@@ -9,11 +10,12 @@ namespace back.Controllers;
 [Route("api/[controller]")]
 public class AuthController(UsuarioService usuarioService) : ControllerBase
 {
+    [AllowAnonymous]
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         Usuario? usuario = await usuarioService.AuthenticateAsync(request.Username, request.Password);
-        
+
         if (usuario == null)
         {
             return Unauthorized("Usuario o contraseña inválidos.");
@@ -23,6 +25,7 @@ public class AuthController(UsuarioService usuarioService) : ControllerBase
         return Ok(new { token });
     }
 
+    [AllowAnonymous]
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
