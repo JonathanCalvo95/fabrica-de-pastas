@@ -24,10 +24,19 @@ limpiar credenciales git
 git config --global --unset user.name
 git config --global --unset user.email
 
-comando
-ctrl + shift + i ordenar codigo
+comandos para ordenar codigo
+shift + alt + f en front
+ctrl + shift + i en back
 
 dotnet build
 dotnet run
 dotnet clean
 dotnet build -c Debug
+
+npm outdated              # ver qué hay para subir
+npm update                # sube a la última versión permitida por los rangos
+rm -rf node_modules package-lock.json
+npm install               # limpia y re-resuelve dependencias
+npm dedupe
+
+npx npm-check-updates@latest -u

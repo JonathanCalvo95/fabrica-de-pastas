@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   Drawer,
   List,
@@ -10,14 +10,21 @@ import {
   IconButton,
   Box,
   Typography,
+  Divider,
+  Avatar,
+  Collapse,
 } from "@mui/material";
 import {
   Dashboard as DashboardIcon,
   Inventory as InventoryIcon,
   ShoppingCart,
   Warehouse,
+  AccountBalance,
   AttachMoney,
   Menu as MenuIcon,
+  Logout as LogoutIcon,
+  ExpandLess,
+  ExpandMore,
 } from "@mui/icons-material";
 
 const menuItems = [
@@ -25,12 +32,42 @@ const menuItems = [
   { title: "Productos", icon: InventoryIcon, path: "/productos" },
   { title: "Ventas", icon: ShoppingCart, path: "/ventas" },
   { title: "Stock", icon: Warehouse, path: "/stock" },
-  { title: "Precios Públicos", icon: AttachMoney, path: "/precios" },
+  { title: "Caja", icon: AccountBalance, path: "/caja" },
+];
+
+const preciosItems = [
+  { title: "Precios 1", path: "/precios1" },
+  { title: "Precios 2", path: "/precios2" },
+  { title: "Precios 3", path: "/precios3" },
+  { title: "Precios 4", path: "/precios4" },
+  { title: "Precios 5", path: "/precios5" },
+  { title: "Precios 6", path: "/precios6" },
 ];
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const [preciosOpen, setPreciosOpen] = useState(false);
+  const [usuario, setUsuario] = useState("");
+  const navigate = useNavigate();
+  const location = useLocation();
   const drawerWidth = collapsed ? 70 : 240;
+
+  useEffect(() => {
+    const email = localStorage.getItem("usuario");
+    if (email) {
+      setUsuario(email);
+    }
+
+    if (location.pathname.match(/^\/precios[1-6]$/)) {
+      setPreciosOpen(true);
+    }
+  }, [location.pathname]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("usuario");
+    navigate("/login");
+  };
 
   return (
     <Drawer
@@ -82,7 +119,7 @@ export function Sidebar() {
         </IconButton>
       </Box>
 
-      <List sx={{ px: 1, py: 2 }}>
+      <List sx={{ px: 1, py: 2, flexGrow: 1 }}>
         {menuItems.map((item) => (
           <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
             <ListItemButton
@@ -115,7 +152,110 @@ export function Sidebar() {
             </ListItemButton>
           </ListItem>
         ))}
+
+        <ListItem disablePadding sx={{ mb: 0.5 }}>
+          <ListItemButton
+            onClick={() => setPreciosOpen(!preciosOpen)}
+            sx={{
+              borderRadius: 2,
+              "&:hover": {
+                bgcolor: "action.hover",
+              },
+            }}
+          >
+            <ListItemIcon
+              sx={{
+                minWidth: collapsed ? "unset" : 40,
+                color: "text.secondary",
+              }}
+            >
+              <AttachMoney />
+            </ListItemIcon>
+            {!collapsed && (
+              <>
+                <ListItemText primary="Precios" />
+                {preciosOpen ? <ExpandLess /> : <ExpandMore />}
+              </>
+            )}
+          </ListItemButton>
+        </ListItem>
+
+        {!collapsed && (
+          <Collapse in={preciosOpen} timeout="auto" unmountOnExit>
+            <List component="div" disablePadding>
+              {preciosItems.map((item) => (
+                <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
+                  <ListItemButton
+                    component={NavLink}
+                    to={item.path}
+                    sx={{
+                      borderRadius: 2,
+                      pl: 4,
+                      "&.active": {
+                        bgcolor: "primary.main",
+                        color: "primary.contrastText",
+                        fontWeight: 600,
+                      },
+                      "&:hover": {
+                        bgcolor: "action.hover",
+                      },
+                    }}
+                  >
+                    <ListItemText primary={item.title} />
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            </List>
+          </Collapse>
+        )}
       </List>
+
+      <Box sx={{ mt: "auto" }}>
+        <Divider sx={{ mb: 1 }} />
+        <Box sx={{ px: 1, pb: 2 }}>
+          <Box sx={{ p: 1.5, mb: 1, bgcolor: "action.hover", borderRadius: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Avatar
+                sx={{
+                  width: 32,
+                  height: 32,
+                  bgcolor: "primary.main",
+                  fontSize: "0.875rem",
+                }}
+              >
+                {usuario.charAt(0).toUpperCase()}
+              </Avatar>
+              <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                <Typography variant="body2" fontWeight="medium" noWrap>
+                  {usuario}
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+
+          <ListItemButton
+            onClick={handleLogout}
+            sx={{
+              borderRadius: 2,
+              color: "error.main",
+              "&:hover": {
+                bgcolor: "error.light",
+                color: "error.contrastText",
+              },
+            }}
+          >
+            <ListItemIcon
+              sx={{
+                minWidth: collapsed ? "unset" : 40,
+                color: "inherit",
+              }}
+            >
+              <LogoutIcon />
+            </ListItemIcon>
+            {!collapsed && <ListItemText primary="Cerrar Sesión" />}
+          </ListItemButton>
+        </Box>
+      </Box>
     </Drawer>
   );
 }

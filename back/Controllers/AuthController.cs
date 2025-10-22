@@ -14,7 +14,7 @@ public class AuthController(UsuarioService usuarioService) : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        Usuario? usuario = await usuarioService.AuthenticateAsync(request.Username, request.Password);
+        Usuario? usuario = await usuarioService.AuthenticateAsync(request.Usuario, request.Clave);
 
         if (usuario == null)
         {
@@ -31,7 +31,7 @@ public class AuthController(UsuarioService usuarioService) : ControllerBase
     {
         try
         {
-            await usuarioService.RegisterAsync(request.Username, request.Password, request.Rol);
+            await usuarioService.RegisterAsync(request.Usuario, request.Clave, request.Rol);
             return Ok("Usuario registrado exitosamente.");
         }
         catch (ArgumentException ex)
@@ -43,13 +43,13 @@ public class AuthController(UsuarioService usuarioService) : ControllerBase
 
 public class LoginRequest
 {
-    public string Username { get; set; } = string.Empty;
-    public string Password { get; set; } = string.Empty;
+    public string Usuario { get; set; } = string.Empty;
+    public string Clave { get; set; } = string.Empty;
 }
 
 public class RegisterRequest
 {
-    public string Username { get; set; } = string.Empty;
-    public string Password { get; set; } = string.Empty;
+    public string Usuario { get; set; } = string.Empty;
+    public string Clave { get; set; } = string.Empty;
     public TipoRol Rol { get; set; }
 }

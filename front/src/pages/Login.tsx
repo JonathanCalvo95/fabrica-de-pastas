@@ -1,88 +1,197 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
-import { TextField, Button, Container, Box, Typography, Alert } from "@mui/material";
+import { useNavigate } from "react-router-dom";
+import {
+  Box,
+  Paper,
+  TextField,
+  Button,
+  Typography,
+  Container,
+  InputAdornment,
+  IconButton,
+} from "@mui/material";
+import {
+  Visibility,
+  VisibilityOff,
+  Login as LoginIcon,
+  AttachMoney,
+} from "@mui/icons-material";
 import { login, type ILoginRequest } from "../api/auth";
 
-const Login: React.FC = () => {
+export default function Login() {
+  const navigate = useNavigate();
+  const [showPassword, setShowPassword] = useState(false);
+  const [usuario, setUsuario] = useState("");
+  const [clave, setClave] = useState("");
+
   const {
-    register,
     handleSubmit,
     formState: { errors },
   } = useForm<ILoginRequest>();
 
   const [loginError, setLoginError] = useState<string | null>(null);
 
-  const onSubmit: SubmitHandler<ILoginRequest> = async (data) => {
+  const onSubmit: SubmitHandler<ILoginRequest> = async () => {
     try {
-      const response = await login(data);
-      const { token } = response;
-      
+      const { token } = await login({ usuario, clave });
       localStorage.setItem("authToken", token);
-      
-      console.log("Login successful, token received:", token);
-      window.location.href = "/";
-    } catch (error) {
+      localStorage.setItem("usuario", usuario);
+      navigate("/");
+    } catch {
       setLoginError("Usuario o contraseña inválidos.");
-      console.error("Login failed:", error);
     }
   };
 
   return (
-    <Container component="main" maxWidth="xs">
-      <Box
-        sx={{
-          marginTop: 8,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-        }}
-      >
-        <Typography component="h1" variant="h5">
-          Fabrica de Pastas
-        </Typography>
-        <Box
-          component="form"
-          onSubmit={handleSubmit(onSubmit)}
-          noValidate
-          sx={{ mt: 1 }}
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+      }}
+    >
+      <Container maxWidth="sm">
+        <Paper
+          elevation={10}
+          sx={{
+            p: 4,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            borderRadius: 2,
+          }}
         >
-          {loginError && <Alert severity="error" sx={{ mb: 2 }}>{loginError}</Alert>}
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            id="username"
-            label="Username"
-            autoComplete="username"
-            autoFocus
-            {...register("username", { required: "Username is required" })}
-            error={!!errors.username}
-            helperText={errors.username?.message}
-          />
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            id="password"
-            label="Password"
-            type="password"
-            autoComplete="current-password"
-            {...register("password", { required: "Password is required" })}
-            error={!!errors.password}
-            helperText={errors.password?.message}
-          />
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            sx={{ mt: 3, mb: 2 }}
-          >
-            Ingresar
-          </Button>
-        </Box>
-      </Box>
-    </Container>
-  );
-};
+          <LoginIcon sx={{ fontSize: 60, color: "primary.main", mb: 2 }} />
 
-export default Login;
+          <Typography
+            component="h1"
+            variant="h4"
+            gutterBottom
+            fontWeight="bold"
+          >
+            Iniciar Sesión
+          </Typography>
+
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Ingresa tus credenciales para acceder al sistema
+          </Typography>
+
+          <Box
+            component="form"
+            onSubmit={handleSubmit(onSubmit)}
+            noValidate
+            sx={{ width: "100%" }}
+          >
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="usuario"
+              label="Nombre de usuario"
+              name="usuario"
+              autoComplete="usuario"
+              autoFocus
+              onChange={(e) => setUsuario(e.target.value)}
+              value={usuario}
+              error={!!errors.usuario}
+              helperText={errors.usuario?.message}
+              sx={{ mb: 2 }}
+            />
+
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              name="clave"
+              id="clave"
+              label="Contraseña"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              onChange={(e) => setClave(e.target.value)}
+              value={clave}
+              error={!!errors.clave}
+              helperText={errors.clave?.message}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="toggle password visibility"
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+              sx={{ mb: 3 }}
+            />
+
+            {loginError && (
+              <Typography color="error" sx={{ mb: 2 }}>
+                {loginError}
+              </Typography>
+            )}
+
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              size="large"
+              sx={{
+                py: 1.5,
+                mb: 2,
+                fontWeight: "bold",
+                textTransform: "none",
+                fontSize: "1.1rem",
+              }}
+            >
+              Ingresar
+            </Button>
+
+            <Box
+              sx={{
+                mt: 3,
+                pt: 3,
+                borderTop: "1px solid",
+                borderColor: "divider",
+              }}
+            >
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ mb: 2, textAlign: "center" }}
+              >
+                Listado de precios
+              </Typography>
+              <Box
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 1,
+                  justifyContent: "center",
+                }}
+              >
+                {[1, 2, 3, 4, 5, 6].map((num) => (
+                  <Button
+                    key={num}
+                    variant="outlined"
+                    size="small"
+                    startIcon={<AttachMoney />}
+                    onClick={() => navigate(`/precios${num}`)}
+                    sx={{ minWidth: "90px" }}
+                  >
+                    Precios {num}
+                  </Button>
+                ))}
+              </Box>
+            </Box>
+          </Box>
+        </Paper>
+      </Container>
+    </Box>
+  );
+}

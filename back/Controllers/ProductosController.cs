@@ -1,5 +1,7 @@
+using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using back.Dtos.Productos;
 using back.Entities;
 using back.Enums;
 using back.Services;
@@ -9,30 +11,47 @@ namespace back.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class ProductosController(IProductoService service) : ControllerBase
+public class ProductosController(IProductoService service, IMapper mapper) : ControllerBase
 {
+    // GET: api/Productos
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Producto>>> GetAll()
+    [ProducesResponseType(typeof(IEnumerable<ProductoListItemDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<ProductoListItemDto>>> GetAll()
     {
-        IEnumerable<Producto> productos = await service.GetAllAsync();
-        return Ok(productos);
+        var productos = await service.GetAllAsync();
+        var result = mapper.Map<IEnumerable<ProductoListItemDto>>(productos);
+        return Ok(result);
     }
 
+    // GET: api/Productos/{id}
     [HttpGet("{id}")]
-    public async Task<ActionResult<Producto>> GetById(string id)
+    [ProducesResponseType(typeof(ProductoListItemDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ProductoListItemDto>> GetById(string id)
     {
-        Producto? producto = await service.GetByIdAsync(id);
-        return producto is null ? NotFound() : Ok(producto);
+        var producto = await service.GetByIdAsync(id);
+        if (producto is null) return NotFound();
+
+        var dto = mapper.Map<ProductoListItemDto>(producto);
+        return Ok(dto);
     }
 
+    // POST: api/Productos
     [HttpPost]
     [Authorize(Roles = nameof(TipoRol.Administrador))]
-    public async Task<ActionResult<Producto>> Create([FromBody] Producto p)
+    [ProducesResponseType(typeof(ProductoListItemDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ProductoListItemDto>> Create([FromBody] ProductoCreateUpdateDto dto)
     {
+        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
         try
         {
-            await service.AddAsync(p);
-            return CreatedAtAction(nameof(GetById), new { id = p.Id }, p);
+            var entity = mapper.Map<Producto>(dto);
+            await service.AddAsync(entity);
+
+            var result = mapper.Map<ProductoListItemDto>(entity);
+            return CreatedAtAction(nameof(GetById), new { id = entity.Id }, result);
         }
         catch (ArgumentException ex)
         {
@@ -40,19 +59,34 @@ public class ProductosController(IProductoService service) : ControllerBase
         }
     }
 
+    // PUT: api/Productos/{id}
     [HttpPut("{id}")]
     [Authorize(Roles = nameof(TipoRol.Administrador) + "," + nameof(TipoRol.Productor))]
-    public async Task<IActionResult> Update(string id, [FromBody] Producto p)
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Update(string id, [FromBody] ProductoCreateUpdateDto dto)
     {
-        bool ok = await service.UpdateAsync(id, p);
+        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
+        var existing = await service.GetByIdAsync(id);
+        if (existing is null) return NotFound();
+
+        // mapear los campos del DTO sobre la entidad existente
+        mapper.Map(dto, existing);
+        existing.FechaActualizacion = DateTime.UtcNow;
+
+        var ok = await service.UpdateAsync(id, existing);
         return ok ? NoContent() : NotFound();
     }
 
+    // DELETE: api/Productos/{id}
     [HttpDelete("{id}")]
     [Authorize(Roles = nameof(TipoRol.Administrador))]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(string id)
     {
-        bool ok = await service.DeleteAsync(id);
+        var ok = await service.DeleteAsync(id);
         return ok ? NoContent() : NotFound();
     }
 }
