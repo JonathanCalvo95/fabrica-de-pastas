@@ -1,7 +1,6 @@
 using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using back.Dtos.Productos;
 using back.Entities;
 using back.Enums;
 using back.Services;
@@ -18,7 +17,7 @@ public class ProductosController(IProductoService service, IMapper mapper) : Con
     [ProducesResponseType(typeof(IEnumerable<ProductoListItemDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<ProductoListItemDto>>> GetAll()
     {
-        var productos = await service.GetAllAsync();
+        var productos = await service.GetAllAsync(activos: true);
         var result = mapper.Map<IEnumerable<ProductoListItemDto>>(productos);
         return Ok(result);
     }
@@ -71,7 +70,6 @@ public class ProductosController(IProductoService service, IMapper mapper) : Con
         var existing = await service.GetByIdAsync(id);
         if (existing is null) return NotFound();
 
-        // mapear los campos del DTO sobre la entidad existente
         mapper.Map(dto, existing);
         existing.FechaActualizacion = DateTime.UtcNow;
 

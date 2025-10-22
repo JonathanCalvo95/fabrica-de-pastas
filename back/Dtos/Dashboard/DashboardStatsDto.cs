@@ -2,9 +2,9 @@ namespace back.Dtos.Dashboard;
 
 public record DashboardStatsDto(
     decimal VentasDelMes,
-    int     ProductosActivos,
+    int ProductosActivos,
     decimal StockKg,
-    double  StockUnidades,
-    double  StockLitros,
+    double StockUnidades,
+    double StockLitros,
     decimal GananciaNeta
 );

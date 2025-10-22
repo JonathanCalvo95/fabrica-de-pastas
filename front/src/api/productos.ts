@@ -5,28 +5,38 @@ export interface Producto {
   nombre: string;
   descripcion: string;
   precio: number;
-  medida: number; // enum
+  medida: number; // enum Medida
   stock: number;
-  tipo: number;   // enum
+  stockMinimo: number;
+  stockMaximo: number;
+  categoria: number; // enum Categoria
   activo: boolean;
   fechaCreacion: string;
   fechaActualizacion: string;
 }
 
-export const getProductos = async (): Promise<Producto[]> => {
+export const get = async (): Promise<Producto[]> => {
   const { data } = await api.get<Producto[]>("/Productos");
   return data;
 };
 
-export const postProducto = async (body: Partial<Producto>) => {
+export const post = async (body: Partial<Producto>) => {
   const { data } = await api.post<Producto>("/Productos", body);
   return data;
 };
 
-export const putProducto = async (id: string, body: Partial<Producto>) => {
+export const put = async (id: string, body: Partial<Producto>) => {
   await api.put(`/Productos/${id}`, body);
 };
 
-export const delProducto = async (id: string) => {
+export const del = async (id: string) => {
   await api.delete(`/Productos/${id}`);
 };
+
+export async function updateStock(id: string, newStock: number): Promise<void> {
+  const current = await api
+    .get<Producto>(`/Productos/${id}`)
+    .then((r) => r.data);
+  const body: Producto = { ...current, stock: newStock };
+  await api.put(`/Productos/${id}`, body);
+}

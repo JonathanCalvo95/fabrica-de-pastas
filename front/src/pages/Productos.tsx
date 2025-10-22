@@ -16,18 +16,12 @@ import {
   Alert,
 } from "@mui/material";
 import { Add, Edit, Delete } from "@mui/icons-material";
-import {
-  getProductos,
-  postProducto,
-  putProducto,
-  delProducto,
-  type Producto,
-} from "../api/productos";
+import { get, post, put, del, type Producto } from "../api/productos";
 
 // helpers para enums
-const unidadLabel = (u: number) =>
+const medidaLabel = (u: number) =>
   ({ 0: "kg", 1: "unidad", 2: "litro" })[u] ?? String(u);
-const tipoLabel = (t: number) =>
+const categoriaLabel = (t: number) =>
   ({ 0: "Rellenos", 1: "Pastas Frescas", 2: "Preparados", 3: "Salsas" })[t] ??
   String(t);
 
@@ -50,7 +44,7 @@ export default function Productos() {
     precio: 0,
     medida: 0,
     stock: 0,
-    tipo: 0,
+    categoria: 0,
     activo: true,
   });
 
@@ -60,7 +54,7 @@ export default function Productos() {
     (async () => {
       try {
         setLoading(true);
-        const data = await getProductos();
+        const data = await get();
         if (mounted) setProductos(data);
       } catch (e: any) {
         setError(e?.response?.data ?? "Error al cargar productos");
@@ -81,7 +75,7 @@ export default function Productos() {
       precio: 0,
       medida: 0,
       stock: 0,
-      tipo: 0,
+      categoria: 0,
       activo: true,
     });
     setOpenCreate(true);
@@ -89,7 +83,7 @@ export default function Productos() {
 
   const handleCreate = async () => {
     try {
-      const creado = await postProducto(formData);
+      const creado = await post(formData);
       setProductos((prev) => [creado, ...prev]);
       setOpenCreate(false);
     } catch (e: any) {
@@ -105,8 +99,7 @@ export default function Productos() {
   const handleEdit = async () => {
     if (!openEdit) return;
     try {
-      await putProducto(openEdit.id, formData);
-      // actualizar localmente
+      await put(openEdit.id, formData);
       setProductos((prev) =>
         prev.map((x) =>
           x.id === openEdit.id ? ({ ...x, ...formData } as Producto) : x
@@ -121,7 +114,7 @@ export default function Productos() {
   const handleDelete = async () => {
     if (!openDelete) return;
     try {
-      await delProducto(openDelete.id);
+      await del(openDelete.id);
       setProductos((prev) => prev.filter((x) => x.id !== openDelete.id));
       setOpenDelete(null);
     } catch (e: any) {
@@ -192,7 +185,7 @@ export default function Productos() {
                     {p.nombre}
                   </Typography>
                   <Chip
-                    label={tipoLabel(p.tipo)}
+                    label={categoriaLabel(p.categoria)}
                     size="small"
                     color="secondary"
                   />
@@ -213,7 +206,7 @@ export default function Productos() {
 
               {p.stock < MIN_STOCK_UI && (
                 <Alert severity="warning" sx={{ mb: 2 }}>
-                  Stock bajo mínimo ({MIN_STOCK_UI} {unidadLabel(p.medida)})
+                  Stock bajo mínimo ({MIN_STOCK_UI} {medidaLabel(p.medida)})
                 </Alert>
               )}
 
@@ -234,7 +227,7 @@ export default function Productos() {
                   value={`${p.stock}`}
                   color={p.stock < MIN_STOCK_UI ? "error.main" : "success.main"}
                 />
-                <Row label="Unidad" value={unidadLabel(p.medida)} />
+                <Row label="Unidad" value={medidaLabel(p.medida)} />
 
                 <Box
                   sx={{
@@ -401,22 +394,22 @@ function Form({
       >
         {[0, 1, 2].map((v) => (
           <MenuItem key={v} value={v}>
-            {unidadLabel(v)}
+            {medidaLabel(v)}
           </MenuItem>
         ))}
       </TextField>
       <TextField
         select
-        label="Tipo"
-        value={formData.tipo ?? 0}
+        label="Categoria"
+        value={formData.categoria ?? 0}
         onChange={(e) =>
-          setFormData({ ...formData, tipo: Number(e.target.value) })
+          setFormData({ ...formData, categoria: Number(e.target.value) })
         }
         fullWidth
       >
         {[0, 1, 2, 3].map((v) => (
           <MenuItem key={v} value={v}>
-            {tipoLabel(v)}
+            {categoriaLabel(v)}
           </MenuItem>
         ))}
       </TextField>

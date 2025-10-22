@@ -18,7 +18,7 @@ export default function GenericError({
     >
       <Box>
         <Typography variant="h3" sx={{ mb: 1, fontWeight: 700 }}>
-          Algo salió mal 😔
+          Algo salió mal
         </Typography>
         <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
           {message}

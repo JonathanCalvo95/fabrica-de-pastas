@@ -1,6 +1,6 @@
 import { ThemeProvider } from "@mui/material/styles";
 import { CssBaseline } from "@mui/material";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { theme } from "./theme/Theme";
 
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -25,7 +25,10 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/precios" element={<Precios />} />
+          <Route
+            path="/precio:n"
+            element={<Navigate to="/precios/:n" replace />}
+          />
 
           {/* Rutas protegidas */}
           <Route element={<ProtectedRoute />}>

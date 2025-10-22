@@ -2,7 +2,7 @@ using System.ComponentModel;
 
 namespace back.Enums;
 
-public enum TipoProducto
+public enum Categoria
 {
     [Description("Pasta Simple")]
     Simple = 1,

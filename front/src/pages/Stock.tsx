@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from "react";
 import {
   Box,
   Card,
@@ -12,91 +12,52 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-} from '@mui/material';
-import { Warning, TrendingDown, TrendingUp } from '@mui/icons-material';
+} from "@mui/material";
+import { Warning, TrendingDown, TrendingUp } from "@mui/icons-material";
+import { get, updateStock, type Producto } from "../api/productos";
+
+type Movement = "in" | "out";
 
 interface StockItem {
-  id: number;
+  id: string;
   name: string;
   current: number;
   minimum: number;
   maximum: number;
   unit: string;
   lastUpdate: string;
-  movement: 'in' | 'out';
+  movement: Movement;
 }
 
-const stockItemsInicial: StockItem[] = [
-  {
-    id: 1,
-    name: 'Ravioles de Ricota',
-    current: 45,
-    minimum: 50,
-    maximum: 150,
-    unit: 'kg',
-    lastUpdate: 'Hoy, 10:30',
-    movement: 'out',
-  },
-  {
-    id: 2,
-    name: 'Ñoquis de Papa',
-    current: 8,
-    minimum: 30,
-    maximum: 100,
-    unit: 'kg',
-    lastUpdate: 'Hoy, 09:15',
-    movement: 'out',
-  },
-  {
-    id: 3,
-    name: 'Tallarines al Huevo',
-    current: 67,
-    minimum: 40,
-    maximum: 120,
-    unit: 'kg',
-    lastUpdate: 'Ayer, 16:45',
-    movement: 'in',
-  },
-  {
-    id: 4,
-    name: 'Sorrentinos de Jamón y Queso',
-    current: 34,
-    minimum: 35,
-    maximum: 100,
-    unit: 'kg',
-    lastUpdate: 'Hoy, 08:20',
-    movement: 'out',
-  },
-  {
-    id: 5,
-    name: 'Capeletis de Verdura',
-    current: 15,
-    minimum: 40,
-    maximum: 110,
-    unit: 'kg',
-    lastUpdate: 'Ayer, 18:00',
-    movement: 'out',
-  },
-  {
-    id: 6,
-    name: 'Lasagna',
-    current: 23,
-    minimum: 20,
-    maximum: 60,
-    unit: 'unidad',
-    lastUpdate: 'Hoy, 11:00',
-    movement: 'in',
-  },
-];
+// Helpers
+const unidadLabel = (u: number) =>
+  ({ 0: "kg", 1: "unidad", 2: "litro" })[u] ?? String(u);
+
+// Mapea Producto (back) → StockItem (UI)
+function mapProductoToStockItem(p: Producto): StockItem {
+  return {
+    id: p.id,
+    name: p.nombre,
+    current: p.stock,
+    minimum: p.stockMinimo,
+    maximum: p.stockMaximo,
+    unit: unidadLabel(p.medida),
+    lastUpdate: "—",
+    movement: "in",
+  };
+}
 
 const getStockColor = (current: number, minimum: number) => {
-  if (current < minimum) return 'error';
-  if (current < minimum * 1.5) return 'warning';
-  return 'success';
+  if (current < minimum) return "error";
+  if (current < minimum * 1.5) return "warning";
+  return "success";
 };
 
 export default function Stock() {
-  const [stockItems, setStockItems] = useState<StockItem[]>(stockItemsInicial);
+  const [stockItems, setStockItems] = useState<StockItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const [openStock, setOpenStock] = useState(false);
   const [openMinStock, setOpenMinStock] = useState(false);
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null);
@@ -104,7 +65,25 @@ export default function Stock() {
   const [minStockAmount, setMinStockAmount] = useState(0);
   const [maxStockAmount, setMaxStockAmount] = useState(0);
 
-  const criticalItems = stockItems.filter((item) => item.current < item.minimum);
+  // Cargar desde el backend
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+        const productos = await get();
+        setStockItems(productos.map(mapProductoToStockItem));
+        setLoadError(null);
+      } catch (e) {
+        setLoadError("No se pudo cargar el stock.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const criticalItems = stockItems.filter(
+    (item) => item.current < item.minimum
+  );
 
   const handleOpenStock = (item: StockItem) => {
     setSelectedItem(item);
@@ -119,32 +98,62 @@ export default function Stock() {
     setOpenMinStock(true);
   };
 
-  const handleAddStock = () => {
-    if (selectedItem) {
-      setStockItems(stockItems.map(item => 
-        item.id === selectedItem.id 
-          ? { 
-              ...item, 
-              current: item.current + stockAmount,
-              lastUpdate: 'Ahora',
-              movement: 'in' as const
-            } 
-          : item
-      ));
+  const handleAddStock = async () => {
+    if (!selectedItem) return;
+
+    const newStock = selectedItem.current + stockAmount;
+    try {
+      await updateStock(selectedItem.id, newStock);
+
+      setStockItems((prev) =>
+        prev.map((it) =>
+          it.id === selectedItem.id
+            ? {
+                ...it,
+                current: newStock,
+                lastUpdate: "Ahora",
+                movement: stockAmount >= 0 ? "in" : "out",
+              }
+            : it
+        )
+      );
       setOpenStock(false);
+    } catch {
+      alert("No se pudo actualizar el stock.");
     }
   };
 
+  // Ajustar mínimos en UI (mientras no existan en el back)
   const handleUpdateMinStock = () => {
-    if (selectedItem) {
-      setStockItems(stockItems.map(item => 
-        item.id === selectedItem.id 
-          ? { ...item, minimum: minStockAmount, maximum: maxStockAmount } 
-          : item
-      ));
-      setOpenMinStock(false);
-    }
+    if (!selectedItem) return;
+    setStockItems((prev) =>
+      prev.map((it) =>
+        it.id === selectedItem.id
+          ? { ...it, minimum: minStockAmount, maximum: maxStockAmount }
+          : it
+      )
+    );
+    setOpenMinStock(false);
+
+    // Cuando tengas min/max en el back, llamá:
+    // await updateProductoMinMax(selectedItem.id, minStockAmount, maxStockAmount);
   };
+
+  if (loading) {
+    return (
+      <Box sx={{ p: 4 }}>
+        <Typography>Cargando stock…</Typography>
+      </Box>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <Box sx={{ p: 4 }}>
+        <Alert severity="error">{loadError}</Alert>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 4 }}>
@@ -163,21 +172,28 @@ export default function Stock() {
             Alerta: {criticalItems.length} producto(s) bajo mínimo
           </Typography>
           <Typography variant="body2">
-            Los siguientes productos requieren reposición urgente:{' '}
-            {criticalItems.map((item) => item.name).join(', ')}
+            Los siguientes productos requieren reposición urgente:{" "}
+            {criticalItems.map((item) => item.name).join(", ")}
           </Typography>
         </Alert>
       )}
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mb: 4 }}>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 3, mb: 4 }}>
         {stockItems.map((item) => {
-          const percentage = (item.current / item.maximum) * 100;
+          const percentage = Math.min(100, (item.current / item.maximum) * 100);
           const stockColor = getStockColor(item.current, item.minimum);
 
           return (
-            <Card key={item.id} sx={{ '&:hover': { boxShadow: 6 } }}>
+            <Card key={item.id} sx={{ "&:hover": { boxShadow: 6 } }}>
               <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    mb: 2,
+                  }}
+                >
                   <Box>
                     <Typography variant="h6" fontWeight={600} sx={{ mb: 0.5 }}>
                       {item.name}
@@ -186,20 +202,30 @@ export default function Stock() {
                       Última actualización: {item.lastUpdate}
                     </Typography>
                   </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    {item.movement === 'in' ? (
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    {item.movement === "in" ? (
                       <TrendingUp color="success" />
                     ) : (
                       <TrendingDown color="error" />
                     )}
-                    <Typography variant="h4" fontWeight="bold" color={`${stockColor}.main`}>
+                    <Typography
+                      variant="h4"
+                      fontWeight="bold"
+                      color={`${stockColor}.main`}
+                    >
                       {item.current} {item.unit}
                     </Typography>
                   </Box>
                 </Box>
 
                 <Box sx={{ mb: 2 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      mb: 1,
+                    }}
+                  >
                     <Typography variant="body2" color="text.secondary">
                       Mínimo: {item.minimum} {item.unit}
                     </Typography>
@@ -210,23 +236,23 @@ export default function Stock() {
                   <LinearProgress
                     variant="determinate"
                     value={percentage}
-                    color={stockColor}
+                    color={stockColor as any}
                     sx={{ height: 8, borderRadius: 1 }}
                   />
                 </Box>
 
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                  <Button 
-                    variant="outlined" 
-                    size="small" 
+                <Box sx={{ display: "flex", gap: 2 }}>
+                  <Button
+                    variant="outlined"
+                    size="small"
                     fullWidth
                     onClick={() => handleOpenStock(item)}
                   >
                     Agregar Stock
                   </Button>
-                  <Button 
-                    variant="outlined" 
-                    size="small" 
+                  <Button
+                    variant="outlined"
+                    size="small"
                     fullWidth
                     onClick={() => handleOpenMinStock(item)}
                   >
@@ -239,15 +265,28 @@ export default function Stock() {
         })}
       </Box>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 3 }}>
+      {/* KPIs (placeholder con datos locales) */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
+          gap: 3,
+        }}
+      >
         <Card>
           <CardContent>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
               Stock Total
             </Typography>
-            <Typography variant="h3">1,247 kg</Typography>
+            <Typography variant="h3">
+              {stockItems.reduce(
+                (acc, it) => acc + (it.unit === "kg" ? it.current : 0),
+                0
+              )}{" "}
+              kg
+            </Typography>
             <Typography variant="body2" color="warning.main" sx={{ mt: 1 }}>
-              -5% vs. mes anterior
+              — vs. mes anterior
             </Typography>
           </CardContent>
         </Card>
@@ -272,21 +311,29 @@ export default function Stock() {
               Valor del Inventario
             </Typography>
             <Typography variant="h3" color="primary">
-              $487,650
+              — {/* cuando tengas costo/precio x stock, calculás acá */}
             </Typography>
           </CardContent>
         </Card>
       </Box>
 
       {/* Dialog Agregar Stock */}
-      <Dialog open={openStock} onClose={() => setOpenStock(false)} maxWidth="xs" fullWidth>
+      <Dialog
+        open={openStock}
+        onClose={() => setOpenStock(false)}
+        maxWidth="xs"
+        fullWidth
+      >
         <DialogTitle>Agregar Stock</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             {selectedItem?.name}
           </Typography>
           <Typography variant="body2" sx={{ mb: 2 }}>
-            Stock actual: <strong>{selectedItem?.current} {selectedItem?.unit}</strong>
+            Stock actual:{" "}
+            <strong>
+              {selectedItem?.current} {selectedItem?.unit}
+            </strong>
           </Typography>
           <TextField
             label="Cantidad a agregar"
@@ -299,26 +346,36 @@ export default function Stock() {
           />
           {stockAmount > 0 && (
             <Typography variant="body2" color="primary" sx={{ mt: 2 }}>
-              Nuevo stock: {(selectedItem?.current || 0) + stockAmount} {selectedItem?.unit}
+              Nuevo stock: {(selectedItem?.current || 0) + stockAmount}{" "}
+              {selectedItem?.unit}
             </Typography>
           )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenStock(false)}>Cancelar</Button>
-          <Button onClick={handleAddStock} variant="contained" disabled={stockAmount <= 0}>
+          <Button
+            onClick={handleAddStock}
+            variant="contained"
+            disabled={stockAmount <= 0}
+          >
             Agregar
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Dialog Ajustar Mínimos */}
-      <Dialog open={openMinStock} onClose={() => setOpenMinStock(false)} maxWidth="xs" fullWidth>
+      <Dialog
+        open={openMinStock}
+        onClose={() => setOpenMinStock(false)}
+        maxWidth="xs"
+        fullWidth
+      >
         <DialogTitle>Ajustar Stock Mínimo y Máximo</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             {selectedItem?.name}
           </Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 2 }}>
             <TextField
               label="Stock mínimo"
               type="number"

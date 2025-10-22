@@ -39,9 +39,6 @@ const preciosItems = [
   { title: "Precios 1", path: "/precios1" },
   { title: "Precios 2", path: "/precios2" },
   { title: "Precios 3", path: "/precios3" },
-  { title: "Precios 4", path: "/precios4" },
-  { title: "Precios 5", path: "/precios5" },
-  { title: "Precios 6", path: "/precios6" },
 ];
 
 export function Sidebar() {

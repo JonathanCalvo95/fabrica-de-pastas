@@ -28,10 +28,14 @@ builder.Services.AddSingleton(sp =>
 // Repositorios
 builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
 builder.Services.AddScoped<IProductoRepository, ProductoRepository>();
+builder.Services.AddScoped<ICajaRepository, CajaRepository>();
+builder.Services.AddScoped<IVentaRepository, VentaRepository>();
 
 // Servicios
 builder.Services.AddScoped<UsuarioService>();
 builder.Services.AddScoped<IProductoService, ProductoService>();
+builder.Services.AddScoped<ICajaService, CajaService>();
+builder.Services.AddScoped<IVentaService, VentaService>();
 
 // AutoMapper
 builder.Services.AddAutoMapper(typeof(Program));

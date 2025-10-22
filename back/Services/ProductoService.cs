@@ -5,16 +5,12 @@ namespace back.Services;
 
 public class ProductoService(IProductoRepository repo) : IProductoService
 {
-    private readonly IProductoRepository _repo = repo;
-
-    public async Task<IEnumerable<Producto>> GetAllAsync()
-    {
-        return await _repo.GetAllAsync();
-    }
+    public Task<IEnumerable<Producto>> GetAllAsync(bool activos = true)
+            => repo.GetAllAsync(activos);
 
     public async Task<Producto?> GetByIdAsync(string id)
     {
-        return await _repo.GetByIdAsync(id);
+        return await repo.GetByIdAsync(id);
     }
 
     public async Task AddAsync(Producto producto)
@@ -23,16 +19,17 @@ public class ProductoService(IProductoRepository repo) : IProductoService
         {
             throw new ArgumentException("El nombre del producto es obligatorio.");
         }
-        await _repo.AddAsync(producto);
+        await repo.AddAsync(producto);
     }
 
     public async Task<bool> UpdateAsync(string id, Producto producto)
     {
-        return await _repo.UpdateAsync(id, producto);
+        return await repo.UpdateAsync(id, producto);
     }
 
     public async Task<bool> DeleteAsync(string id)
     {
-        return await _repo.DeleteAsync(id);
+        return await repo.DeleteAsync(id);
     }
+
 }

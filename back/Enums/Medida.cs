@@ -2,7 +2,7 @@ using System.ComponentModel;
 
 namespace back.Enums;
 
-public enum UnidadMedida
+public enum Medida
 {
     [Description("Kilogramo")]
     Kg = 1,

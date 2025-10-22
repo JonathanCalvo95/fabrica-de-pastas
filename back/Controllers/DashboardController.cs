@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using back.Dtos.Dashboard;
-using back.Entities;
 using back.Enums;
 using back.Services;
 
@@ -10,22 +9,21 @@ namespace back.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class DashboardController(IProductoService productoService /*, IVentaService ventaService */) : ControllerBase
+public class DashboardController(IProductoService productoService) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<DashboardResponse>> Get()
+    public async Task<ActionResult<DashboardResponseDto>> Get()
     {
         var productos = (await productoService.GetAllAsync()).ToList();
 
         int productosActivos = productos.Count(p => p.Activo);
-        decimal stockKg = productos.Where(p => p.Medida == UnidadMedida.Kg)
+        decimal stockKg = productos.Where(p => p.Medida == Medida.Kg)
                                             .Sum(p => (decimal)p.Stock);
-        double stockUnidades = productos.Where(p => p.Medida == UnidadMedida.Unidad)
+        double stockUnidades = productos.Where(p => p.Medida == Medida.Unidad)
                                             .Sum(p => p.Stock);
-        double stockLitros = productos.Where(p => p.Medida == UnidadMedida.Litro)
+        double stockLitros = productos.Where(p => p.Medida == Medida.Litro)
                                             .Sum(p => p.Stock);
 
-        // TODO: integrar ventas reales cuando tengas IVentaService
         decimal ventasDelMes = 0m;
         decimal gananciaNeta = 0m;
 
@@ -48,17 +46,17 @@ public class DashboardController(IProductoService productoService /*, IVentaServ
             GananciaNeta: gananciaNeta
         );
 
-        var recent = new List<RecentSaleDto>(); // llenar cuando haya ventas
+        var recent = new List<RecentSaleDto>();
 
-        return Ok(new DashboardResponse(stats, recent, lowStock));
+        return Ok(new DashboardResponseDto(stats, recent, lowStock));
     }
 
-    private static string FormatearCantidad(double cant, UnidadMedida um) =>
+    private static string FormatearCantidad(double cant, Medida um) =>
         um switch
         {
-            UnidadMedida.Kg => $"{cant:0.##} kg",
-            UnidadMedida.Unidad => $"{cant:0} u",
-            UnidadMedida.Litro => $"{cant:0.##} l",
+            Medida.Kg => $"{cant:0.##} kg",
+            Medida.Unidad => $"{cant:0} u",
+            Medida.Litro => $"{cant:0.##} l",
             _ => cant.ToString("0.##")
         };
 }

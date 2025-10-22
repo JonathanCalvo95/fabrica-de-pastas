@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Card,
@@ -18,132 +18,107 @@ import {
   TableRow,
   Chip,
   Alert,
-  Grid,
+  LinearProgress,
 } from "@mui/material";
+import Grid from "@mui/material/Grid";
 import { Lock, LockOpen } from "@mui/icons-material";
+import {
+  getCajaActual,
+  getHistorialCaja,
+  abrirCaja,
+  cerrarCaja,
+  type CajaDto,
+  type EstadoCaja,
+} from "../api/caja";
 
-type CashSessionStatus = "open" | "closed" | "paused";
-
-interface CashSession {
-  id: number;
-  apertura: string;
-  cierre: string | null;
-  montoApertura: number;
-  montoCierreCalculado: number | null;
-  montoCierreReal: number | null;
-  usuarioId: string;
-  estado: CashSessionStatus;
-  observaciones: string;
-}
-
-const sesionesIniciales: CashSession[] = [
-  {
-    id: 1,
-    apertura: "2025-10-14 08:00",
-    cierre: "2025-10-14 20:00",
-    montoApertura: 5000,
-    montoCierreCalculado: 18750,
-    montoCierreReal: 18745,
-    usuarioId: "user1",
-    estado: "closed",
-    observaciones: "Faltaron 5 pesos.",
-  },
-  {
-    id: 2,
-    apertura: "2025-10-13 08:00",
-    cierre: "2025-10-13 19:30",
-    montoApertura: 5000,
-    montoCierreCalculado: 23700,
-    montoCierreReal: 23700,
-    usuarioId: "user1",
-    estado: "closed",
-    observaciones: "Cierre exacto.",
-  },
-];
-
-const getStatusChip = (estado: CashSessionStatus) => {
-  const statusConfig = {
-    open: { label: "Abierta", color: "success" as const },
-    closed: { label: "Cerrada", color: "default" as const },
-    paused: { label: "Pausada", color: "warning" as const },
+// helpers
+const estadoChip = (estado: EstadoCaja) => {
+  const map = {
+    1: { label: "Abierta", color: "success" as const },
+    2: { label: "Cerrada", color: "default" as const },
+    3: { label: "Pausada", color: "warning" as const },
   };
-  const config = statusConfig[estado];
-  return <Chip label={config.label} color={config.color} size="small" />;
+  const cfg = map[estado] ?? map[2];
+  return <Chip label={cfg.label} color={cfg.color} size="small" />;
 };
 
-export default function CajaMUI() {
-  const [sesiones, setSesiones] = useState<CashSession[]>(sesionesIniciales);
-  const [openApertura, setOpenApertura] = useState(false);
-  const [openCierre, setOpenCierre] = useState(false);
+export default function Caja() {
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [abierta, setAbierta] = useState<CajaDto | null>(null);
+  const [historial, setHistorial] = useState<CajaDto[]>([]);
+
+  // diálogos
+  const [dlgAbrir, setDlgAbrir] = useState(false);
+  const [dlgCerrar, setDlgCerrar] = useState(false);
+
+  // formularios
   const [montoApertura, setMontoApertura] = useState("5000");
   const [montoCierreReal, setMontoCierreReal] = useState("");
   const [observaciones, setObservaciones] = useState("");
 
-  const sesionActiva = sesiones.find((s) => s.estado === "open");
+  // ventas en efectivo del día (ejemplo visual; en producción puede venir del back)
+  const ventasEfectivo = 8750;
 
-  const handleAbrirCaja = () => {
-    const nuevaSesion: CashSession = {
-      id: sesiones.length + 1,
-      apertura: new Date().toLocaleString("es-AR", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      cierre: null,
-      montoApertura: parseFloat(montoApertura),
-      montoCierreCalculado: null,
-      montoCierreReal: null,
-      usuarioId: "user1",
-      estado: "open",
-      observaciones: "",
-    };
-    setSesiones([nuevaSesion, ...sesiones]);
-    setOpenApertura(false);
-    setMontoApertura("5000");
-  };
+  const montoEsperado = useMemo(() => {
+    if (!abierta) return 0;
+    return abierta.montoApertura + ventasEfectivo;
+  }, [abierta]);
 
-  const handleCerrarCaja = () => {
-    if (!sesionActiva) return;
+  async function cargar() {
+    try {
+      setCargando(true);
+      setError(null);
+      const [open, hist] = await Promise.all([
+        getCajaActual(),
+        getHistorialCaja(50),
+      ]);
+      setAbierta(open);
+      setHistorial(hist);
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo cargar la caja");
+    } finally {
+      setCargando(false);
+    }
+  }
 
-    // Simular ventas en efectivo del día (en producción vendría de la BD)
-    const ventasEfectivo = 8750; // Ejemplo: suma de ventas en efectivo
-    const montoCierreCalculado = sesionActiva.montoApertura + ventasEfectivo;
-    const montoRealIngresado = parseFloat(montoCierreReal);
-    const diferencia = montoRealIngresado - montoCierreCalculado;
+  useEffect(() => {
+    cargar();
+  }, []);
 
-    const sesionCerrada: CashSession = {
-      ...sesionActiva,
-      cierre: new Date().toLocaleString("es-AR", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      montoCierreCalculado,
-      montoCierreReal: montoRealIngresado,
-      estado: "closed",
-      observaciones:
-        diferencia === 0
-          ? "Cierre exacto."
-          : diferencia > 0
-            ? `Sobraron $${Math.abs(diferencia).toFixed(2)}.`
-            : `Faltaron $${Math.abs(diferencia).toFixed(2)}.`,
-    };
+  async function onAbrir() {
+    try {
+      const monto = parseFloat(montoApertura || "0");
+      if (isNaN(monto) || monto < 0) return;
+      const nueva = await abrirCaja(monto);
+      setAbierta(nueva);
+      // refresco historial
+      setHistorial((h) => [nueva, ...h]);
+      setDlgAbrir(false);
+      setMontoApertura("5000");
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo abrir la caja");
+    }
+  }
 
-    setSesiones(
-      sesiones.map((s) => (s.id === sesionActiva.id ? sesionCerrada : s))
-    );
-    setOpenCierre(false);
-    setMontoCierreReal("");
-    setObservaciones("");
-  };
-
-  const montoCierreCalculado = sesionActiva
-    ? sesionActiva.montoApertura + 8750
-    : 0;
+  async function onCerrar() {
+    if (!abierta) return;
+    try {
+      const real = parseFloat(montoCierreReal || "0");
+      await cerrarCaja({
+        montoCierreReal: real,
+        observaciones: observaciones || undefined,
+      });
+      // recargar todo para ver estado actualizado
+      await cargar();
+      setDlgCerrar(false);
+      setMontoCierreReal("");
+      setObservaciones("");
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo cerrar la caja");
+    }
+  }
 
   return (
     <Box sx={{ p: 4 }}>
@@ -163,11 +138,12 @@ export default function CajaMUI() {
             Apertura, cierre y control de caja diaria
           </Typography>
         </Box>
-        {!sesionActiva ? (
+
+        {!abierta ? (
           <Button
             variant="contained"
             startIcon={<LockOpen />}
-            onClick={() => setOpenApertura(true)}
+            onClick={() => setDlgAbrir(true)}
           >
             Abrir Caja
           </Button>
@@ -176,26 +152,38 @@ export default function CajaMUI() {
             variant="contained"
             color="error"
             startIcon={<Lock />}
-            onClick={() => setOpenCierre(true)}
+            onClick={() => setDlgCerrar(true)}
           >
             Cerrar Caja
           </Button>
         )}
       </Box>
 
-      {sesionActiva && (
+      {cargando && (
+        <Box sx={{ mb: 3 }}>
+          <LinearProgress />
+        </Box>
+      )}
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
+
+      {abierta && (
         <Alert severity="success" sx={{ mb: 4 }}>
           <Typography variant="body1" fontWeight={600}>
-            Caja Abierta - Sesión #{sesionActiva.id}
+            Caja Abierta – Sesión #{abierta.id}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Apertura: {sesionActiva.apertura} | Monto Inicial: $
-            {sesionActiva.montoApertura.toLocaleString()}
+            Apertura: {new Date(abierta.apertura).toLocaleString()} | Monto
+            Inicial: ${abierta.montoApertura.toLocaleString()}
           </Typography>
         </Alert>
       )}
 
-      {!sesionActiva && (
+      {!abierta && !cargando && (
         <Alert severity="warning" sx={{ mb: 4 }}>
           <Typography variant="body1" fontWeight={600}>
             No hay caja abierta
@@ -206,7 +194,7 @@ export default function CajaMUI() {
         </Alert>
       )}
 
-      {sesionActiva && (
+      {abierta && (
         <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid size={{ xs: 12, md: 4 }}>
             <Card>
@@ -219,11 +207,12 @@ export default function CajaMUI() {
                   Monto Apertura
                 </Typography>
                 <Typography variant="h3" color="primary">
-                  ${sesionActiva.montoApertura.toLocaleString()}
+                  ${abierta.montoApertura.toLocaleString()}
                 </Typography>
               </CardContent>
             </Card>
           </Grid>
+
           <Grid size={{ xs: 12, md: 4 }}>
             <Card>
               <CardContent>
@@ -235,11 +224,12 @@ export default function CajaMUI() {
                   Ventas en Efectivo
                 </Typography>
                 <Typography variant="h3" color="success.main">
-                  $8,750
+                  ${ventasEfectivo.toLocaleString()}
                 </Typography>
               </CardContent>
             </Card>
           </Grid>
+
           <Grid size={{ xs: 12, md: 4 }}>
             <Card>
               <CardContent>
@@ -251,7 +241,7 @@ export default function CajaMUI() {
                   Monto Esperado
                 </Typography>
                 <Typography variant="h3">
-                  ${montoCierreCalculado.toLocaleString()}
+                  ${montoEsperado.toLocaleString()}
                 </Typography>
               </CardContent>
             </Card>
@@ -264,6 +254,7 @@ export default function CajaMUI() {
           <Typography variant="h2" sx={{ mb: 3 }}>
             Historial de Sesiones
           </Typography>
+
           <TableContainer>
             <Table>
               <TableHead>
@@ -287,9 +278,6 @@ export default function CajaMUI() {
                     <strong>Monto Real</strong>
                   </TableCell>
                   <TableCell>
-                    <strong>Diferencia</strong>
-                  </TableCell>
-                  <TableCell>
                     <strong>Estado</strong>
                   </TableCell>
                   <TableCell>
@@ -297,91 +285,53 @@ export default function CajaMUI() {
                   </TableCell>
                 </TableRow>
               </TableHead>
+
               <TableBody>
-                {sesiones.map((sesion) => {
-                  const diferencia =
-                    sesion.montoCierreReal && sesion.montoCierreCalculado
-                      ? sesion.montoCierreReal - sesion.montoCierreCalculado
-                      : null;
-                  return (
-                    <TableRow
-                      key={sesion.id}
-                      sx={{ "&:hover": { bgcolor: "action.hover" } }}
-                    >
-                      <TableCell>
-                        <Typography variant="body2" fontFamily="monospace">
-                          #{sesion.id.toString().padStart(3, "0")}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {sesion.apertura}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {sesion.cierre || "-"}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography fontWeight={500}>
-                          ${sesion.montoApertura.toLocaleString()}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography>
-                          {sesion.montoCierreCalculado
-                            ? `$${sesion.montoCierreCalculado.toLocaleString()}`
-                            : "-"}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography>
-                          {sesion.montoCierreReal
-                            ? `$${sesion.montoCierreReal.toLocaleString()}`
-                            : "-"}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        {diferencia !== null && (
-                          <Typography
-                            fontWeight={600}
-                            color={
-                              diferencia === 0
-                                ? "success.main"
-                                : diferencia > 0
-                                  ? "info.main"
-                                  : "error.main"
-                            }
-                          >
-                            {diferencia === 0
-                              ? "$0"
-                              : diferencia > 0
-                                ? `+$${diferencia.toFixed(2)}`
-                                : `-$${Math.abs(diferencia).toFixed(2)}`}
-                          </Typography>
-                        )}
-                        {diferencia === null && "-"}
-                      </TableCell>
-                      <TableCell>{getStatusChip(sesion.estado)}</TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">
-                          {sesion.observaciones || "-"}
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                {historial.map((s) => (
+                  <TableRow
+                    key={s.id}
+                    sx={{ "&:hover": { bgcolor: "action.hover" } }}
+                  >
+                    <TableCell>
+                      <Typography variant="body2" fontFamily="monospace">
+                        #{s.id}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(s.apertura).toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      {s.cierre ? new Date(s.cierre).toLocaleString() : "-"}
+                    </TableCell>
+                    <TableCell>${s.montoApertura.toLocaleString()}</TableCell>
+                    <TableCell>
+                      {s.montoCierreCalculado != null
+                        ? `$${s.montoCierreCalculado.toLocaleString()}`
+                        : "-"}
+                    </TableCell>
+                    <TableCell>
+                      {s.montoCierreReal != null
+                        ? `$${s.montoCierreReal.toLocaleString()}`
+                        : "-"}
+                    </TableCell>
+                    <TableCell>{estadoChip(s.estado)}</TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color="text.secondary">
+                        {s.observaciones || "-"}
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </TableContainer>
         </CardContent>
       </Card>
 
-      {/* Dialog Apertura */}
+      {/* Abrir caja */}
       <Dialog
-        open={openApertura}
-        onClose={() => setOpenApertura(false)}
+        open={dlgAbrir}
+        onClose={() => setDlgAbrir(false)}
         maxWidth="sm"
         fullWidth
       >
@@ -402,24 +352,25 @@ export default function CajaMUI() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenApertura(false)}>Cancelar</Button>
-          <Button variant="contained" onClick={handleAbrirCaja}>
+          <Button onClick={() => setDlgAbrir(false)}>Cancelar</Button>
+          <Button variant="contained" onClick={onAbrir}>
             Abrir Caja
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Dialog Cierre */}
+      {/* Cerrar caja */}
       <Dialog
-        open={openCierre}
-        onClose={() => setOpenCierre(false)}
+        open={dlgCerrar}
+        onClose={() => setDlgCerrar(false)}
         maxWidth="sm"
         fullWidth
       >
         <DialogTitle>Cerrar Caja</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Sesión #{sesionActiva?.id} - Apertura: {sesionActiva?.apertura}
+            Sesión #{abierta?.id} – Apertura:{" "}
+            {abierta ? new Date(abierta.apertura).toLocaleString() : "-"}
           </Typography>
 
           <Box sx={{ bgcolor: "action.hover", p: 2, borderRadius: 2, mb: 3 }}>
@@ -429,7 +380,7 @@ export default function CajaMUI() {
                   Monto Apertura
                 </Typography>
                 <Typography variant="h6">
-                  ${sesionActiva?.montoApertura.toLocaleString()}
+                  ${abierta?.montoApertura.toLocaleString()}
                 </Typography>
               </Grid>
               <Grid size={{ xs: 6 }}>
@@ -437,7 +388,7 @@ export default function CajaMUI() {
                   Ventas en Efectivo
                 </Typography>
                 <Typography variant="h6" color="success.main">
-                  $8,750
+                  ${ventasEfectivo.toLocaleString()}
                 </Typography>
               </Grid>
               <Grid size={{ xs: 12 }}>
@@ -445,7 +396,7 @@ export default function CajaMUI() {
                   Monto Esperado
                 </Typography>
                 <Typography variant="h5" color="primary" fontWeight={600}>
-                  ${montoCierreCalculado.toLocaleString()}
+                  ${montoEsperado.toLocaleString()}
                 </Typography>
               </Grid>
             </Grid>
@@ -466,9 +417,9 @@ export default function CajaMUI() {
           {montoCierreReal && (
             <Alert
               severity={
-                parseFloat(montoCierreReal) === montoCierreCalculado
+                parseFloat(montoCierreReal) === montoEsperado
                   ? "success"
-                  : parseFloat(montoCierreReal) > montoCierreCalculado
+                  : parseFloat(montoCierreReal) > montoEsperado
                     ? "info"
                     : "error"
               }
@@ -476,14 +427,14 @@ export default function CajaMUI() {
             >
               <Typography variant="body2" fontWeight={600}>
                 Diferencia: $
-                {Math.abs(
-                  parseFloat(montoCierreReal) - montoCierreCalculado
-                ).toFixed(2)}
+                {Math.abs(parseFloat(montoCierreReal) - montoEsperado).toFixed(
+                  2
+                )}
               </Typography>
               <Typography variant="body2">
-                {parseFloat(montoCierreReal) === montoCierreCalculado
+                {parseFloat(montoCierreReal) === montoEsperado
                   ? "Cierre exacto"
-                  : parseFloat(montoCierreReal) > montoCierreCalculado
+                  : parseFloat(montoCierreReal) > montoEsperado
                     ? "Sobra dinero"
                     : "Falta dinero"}
               </Typography>
@@ -497,15 +448,15 @@ export default function CajaMUI() {
             rows={3}
             value={observaciones}
             onChange={(e) => setObservaciones(e.target.value)}
-            placeholder="Notas adicionales sobre el cierre..."
+            placeholder="Notas adicionales sobre el cierre…"
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenCierre(false)}>Cancelar</Button>
+          <Button onClick={() => setDlgCerrar(false)}>Cancelar</Button>
           <Button
             variant="contained"
             color="error"
-            onClick={handleCerrarCaja}
+            onClick={onCerrar}
             disabled={!montoCierreReal}
           >
             Cerrar Caja
