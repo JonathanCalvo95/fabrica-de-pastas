@@ -1,0 +1,145 @@
+{
+	"info": {
+		"_postman_id": "94e6d937-d787-4982-bb09-5e40b4353de6",
+		"name": "Endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "6709284"
+	},
+	"item": [
+		{
+			"name": "Login",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"usuario\":\"admin\",\r\n    \"clave\":\"admin123!\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:5146/api/Auth/login",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "5146",
+					"path": [
+						"api",
+						"Auth",
+						"login"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Register",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"username\": \"productor\",\r\n  \"password\": \"productor\",\r\n  \"rol\": 2\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:5146/api/Auth/register",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "5146",
+					"path": [
+						"api",
+						"Auth",
+						"register"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GetAll",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2OGYxOWQ0NDlhMjAyNDhkODRiYzNlMGYiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiYWRtaW4iLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBZG1pbmlzdHJhZG9yIiwianRpIjoiZGZiODQyYzctNTJkNS00MzEwLWJkMWMtZmQ4OTUzYjk5NTcxIiwiZXhwIjoxNzYxMTAxMjE4LCJpc3MiOiJGYWJyaWNhRGVQYXN0YXMuQXBpIiwiYXVkIjoiRmFicmljYURlUGFzdGFzLkNsaWVudCJ9.8wEd1by-8zKoXnHcKvJZBD-RZ4akwaDU6ikFa623Qtg",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:5146/api/Productos",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "5146",
+					"path": [
+						"api",
+						"Productos"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2OGYxOWQ0NDlhMjAyNDhkODRiYzNlMGYiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiYWRtaW4iLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBZG1pbmlzdHJhZG9yIiwianRpIjoiZGZiODQyYzctNTJkNS00MzEwLWJkMWMtZmQ4OTUzYjk5NTcxIiwiZXhwIjoxNzYxMTAxMjE4LCJpc3MiOiJGYWJyaWNhRGVQYXN0YXMuQXBpIiwiYXVkIjoiRmFicmljYURlUGFzdGFzLkNsaWVudCJ9.8wEd1by-8zKoXnHcKvJZBD-RZ4akwaDU6ikFa623Qtg",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"nombre\": \"Salsa Fileto\",\r\n  \"descripcion\": \"Salsa clásica de tomate natural con albahaca.\",\r\n  \"precio\": 300,\r\n  \"medida\": 2,\r\n  \"stock\": 25,\r\n  \"tipo\": 3,\r\n  \"activo\": true\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:5146/api/Productos",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "5146",
+					"path": [
+						"api",
+						"Productos"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
