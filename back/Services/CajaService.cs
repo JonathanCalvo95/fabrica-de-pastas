@@ -2,15 +2,14 @@ namespace back.Services;
 
 using back.Entities;
 using back.Enums;
-using back.Repositories;
 
-public class CajaService(ICajaRepository repo, IVentaRepository ventas) : ICajaService
+public class CajaService(ICajaRepository repo) : ICajaService
 {
     public Task<Caja?> GetOpenAsync() => repo.GetOpenAsync();
 
     public Task<List<Caja>> GetHistoryAsync(int take = 50) => repo.GetHistoryAsync(take);
 
-    public async Task<Caja> OpenAsync(string usuarioId, decimal montoApertura, string? observaciones)
+    public async Task<Caja> OpenAsync(string usuarioId, CajaRequestDto req)
     {
         var abierta = await repo.GetOpenAsync();
         if (abierta is not null)
@@ -19,31 +18,33 @@ public class CajaService(ICajaRepository repo, IVentaRepository ventas) : ICajaS
         var caja = new Caja
         {
             Apertura = DateTime.UtcNow,
-            MontoApertura = montoApertura,
+            MontoInicial = req.Monto,
             UsuarioId = usuarioId,
             Estado = EstadoCaja.Abierta,
-            Observaciones = observaciones ?? string.Empty
+            Observaciones = req.Observaciones ?? string.Empty
         };
 
         await repo.AddAsync(caja);
         return caja;
     }
 
-    public async Task<bool> CloseAsync(string? usuarioId, decimal montoCierreReal, string? observaciones)
+    public async Task<bool> CloseAsync(string? usuarioId, CajaRequestDto req)
     {
         var abierta = await repo.GetOpenAsync();
         if (abierta is null)
             throw new InvalidOperationException("No hay caja abierta para cerrar.");
 
-        decimal ventasEfectivo = await ventas.GetTotalEfectivoDesdeAsync(abierta.Apertura);
+        decimal ventasEfectivo = await repo.GetTotalEfectivo();
 
-        decimal montoCalculado = abierta.MontoApertura + ventasEfectivo;
+        decimal montoCalculado = abierta.MontoInicial + ventasEfectivo;
 
         return await repo.CloseAsync(
             abierta.Id,
-            montoCierreReal,
+            req.Monto,
             montoCalculado,
-            observaciones
+            req.Observaciones
         );
     }
+
+    public Task<decimal> GetVentasEfectivoAsync() => repo.GetTotalEfectivo();
 }

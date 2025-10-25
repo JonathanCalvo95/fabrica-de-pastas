@@ -19,63 +19,67 @@ import {
   Chip,
   Alert,
   LinearProgress,
+  Grid,
 } from "@mui/material";
-import Grid from "@mui/material/Grid";
 import { Lock, LockOpen } from "@mui/icons-material";
 import {
   getCajaActual,
   getHistorialCaja,
+  getVentasEfectivo,
   abrirCaja,
   cerrarCaja,
   type CajaDto,
   type EstadoCaja,
 } from "../api/caja";
+import { estadoCajaInfo } from "../utils/enums";
 
 // helpers
-const estadoChip = (estado: EstadoCaja) => {
-  const map = {
-    1: { label: "Abierta", color: "success" as const },
-    2: { label: "Cerrada", color: "default" as const },
-    3: { label: "Pausada", color: "warning" as const },
-  };
-  const cfg = map[estado] ?? map[2];
+const EstadoChip = ({ value }: { value: EstadoCaja }) => {
+  const cfg = estadoCajaInfo(value);
   return <Chip label={cfg.label} color={cfg.color} size="small" />;
 };
+
+const money = (n: number) =>
+  n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
+
+const diff = (calc?: number | null, real?: number | null) =>
+  calc != null && real != null ? real - calc : null;
+
+const diffColor = (d: number) =>
+  d === 0 ? "success.main" : d > 0 ? "info.main" : "error.main";
 
 export default function Caja() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [ventasEfectivo, setVentasEfectivo] = useState(0);
 
   const [abierta, setAbierta] = useState<CajaDto | null>(null);
   const [historial, setHistorial] = useState<CajaDto[]>([]);
 
-  // diálogos
   const [dlgAbrir, setDlgAbrir] = useState(false);
   const [dlgCerrar, setDlgCerrar] = useState(false);
 
-  // formularios
-  const [montoApertura, setMontoApertura] = useState("5000");
-  const [montoCierreReal, setMontoCierreReal] = useState("");
+  const [montoInicial, setMontoInicial] = useState("");
+  const [montoReal, setMontoReal] = useState("");
   const [observaciones, setObservaciones] = useState("");
-
-  // ventas en efectivo del día (ejemplo visual; en producción puede venir del back)
-  const ventasEfectivo = 8750;
 
   const montoEsperado = useMemo(() => {
     if (!abierta) return 0;
-    return abierta.montoApertura + ventasEfectivo;
-  }, [abierta]);
+    return abierta.montoInicial + ventasEfectivo;
+  }, [abierta, ventasEfectivo]);
 
   async function cargar() {
     try {
       setCargando(true);
       setError(null);
-      const [open, hist] = await Promise.all([
+      const [open, hist, efectivo] = await Promise.all([
         getCajaActual(),
         getHistorialCaja(50),
+        getVentasEfectivo(),
       ]);
       setAbierta(open);
       setHistorial(hist);
+      setVentasEfectivo(efectivo);
     } catch (e: any) {
       setError(e?.message ?? "No se pudo cargar la caja");
     } finally {
@@ -89,14 +93,13 @@ export default function Caja() {
 
   async function onAbrir() {
     try {
-      const monto = parseFloat(montoApertura || "0");
+      const monto = parseFloat(montoInicial || "0");
       if (isNaN(monto) || monto < 0) return;
       const nueva = await abrirCaja(monto);
       setAbierta(nueva);
-      // refresco historial
       setHistorial((h) => [nueva, ...h]);
       setDlgAbrir(false);
-      setMontoApertura("5000");
+      setMontoInicial("");
     } catch (e: any) {
       setError(e?.message ?? "No se pudo abrir la caja");
     }
@@ -105,15 +108,14 @@ export default function Caja() {
   async function onCerrar() {
     if (!abierta) return;
     try {
-      const real = parseFloat(montoCierreReal || "0");
+      const real = parseFloat(montoReal || "0");
       await cerrarCaja({
-        montoCierreReal: real,
+        monto: real,
         observaciones: observaciones || undefined,
       });
-      // recargar todo para ver estado actualizado
       await cargar();
       setDlgCerrar(false);
-      setMontoCierreReal("");
+      setMontoReal("");
       setObservaciones("");
     } catch (e: any) {
       setError(e?.message ?? "No se pudo cerrar la caja");
@@ -178,7 +180,7 @@ export default function Caja() {
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Apertura: {new Date(abierta.apertura).toLocaleString()} | Monto
-            Inicial: ${abierta.montoApertura.toLocaleString()}
+            Inicial: {money(abierta.montoInicial)}
           </Typography>
         </Alert>
       )}
@@ -189,7 +191,7 @@ export default function Caja() {
             No hay caja abierta
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Debe abrir una caja antes de realizar ventas en efectivo
+            Debe abrir una caja antes de realizar ventas
           </Typography>
         </Alert>
       )}
@@ -204,10 +206,10 @@ export default function Caja() {
                   color="text.secondary"
                   sx={{ mb: 0.5 }}
                 >
-                  Monto Apertura
+                  Efectivo Apertura
                 </Typography>
                 <Typography variant="h3" color="primary">
-                  ${abierta.montoApertura.toLocaleString()}
+                  {money(abierta.montoInicial)}
                 </Typography>
               </CardContent>
             </Card>
@@ -224,7 +226,7 @@ export default function Caja() {
                   Ventas en Efectivo
                 </Typography>
                 <Typography variant="h3" color="success.main">
-                  ${ventasEfectivo.toLocaleString()}
+                  {money(ventasEfectivo)}
                 </Typography>
               </CardContent>
             </Card>
@@ -240,9 +242,7 @@ export default function Caja() {
                 >
                   Monto Esperado
                 </Typography>
-                <Typography variant="h3">
-                  ${montoEsperado.toLocaleString()}
-                </Typography>
+                <Typography variant="h3">{money(montoEsperado)}</Typography>
               </CardContent>
             </Card>
           </Grid>
@@ -260,9 +260,6 @@ export default function Caja() {
               <TableHead>
                 <TableRow sx={{ bgcolor: "action.hover" }}>
                   <TableCell>
-                    <strong>ID</strong>
-                  </TableCell>
-                  <TableCell>
                     <strong>Apertura</strong>
                   </TableCell>
                   <TableCell>
@@ -278,6 +275,9 @@ export default function Caja() {
                     <strong>Monto Real</strong>
                   </TableCell>
                   <TableCell>
+                    <strong>Diferencia</strong>
+                  </TableCell>
+                  <TableCell>
                     <strong>Estado</strong>
                   </TableCell>
                   <TableCell>
@@ -287,41 +287,52 @@ export default function Caja() {
               </TableHead>
 
               <TableBody>
-                {historial.map((s) => (
-                  <TableRow
-                    key={s.id}
-                    sx={{ "&:hover": { bgcolor: "action.hover" } }}
-                  >
-                    <TableCell>
-                      <Typography variant="body2" fontFamily="monospace">
-                        #{s.id}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(s.apertura).toLocaleString()}
-                    </TableCell>
-                    <TableCell>
-                      {s.cierre ? new Date(s.cierre).toLocaleString() : "-"}
-                    </TableCell>
-                    <TableCell>${s.montoApertura.toLocaleString()}</TableCell>
-                    <TableCell>
-                      {s.montoCierreCalculado != null
-                        ? `$${s.montoCierreCalculado.toLocaleString()}`
-                        : "-"}
-                    </TableCell>
-                    <TableCell>
-                      {s.montoCierreReal != null
-                        ? `$${s.montoCierreReal.toLocaleString()}`
-                        : "-"}
-                    </TableCell>
-                    <TableCell>{estadoChip(s.estado)}</TableCell>
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {s.observaciones || "-"}
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {historial.map((s) => {
+                  const d = diff(s.montoCalculado, s.montoReal);
+                  return (
+                    <TableRow
+                      key={s.id}
+                      sx={{ "&:hover": { bgcolor: "action.hover" } }}
+                    >
+                      <TableCell>
+                        {new Date(s.apertura).toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        {s.cierre ? new Date(s.cierre).toLocaleString() : "-"}
+                      </TableCell>
+                      <TableCell>{money(s.montoInicial)}</TableCell>
+                      <TableCell>
+                        {s.montoCalculado != null
+                          ? money(s.montoCalculado)
+                          : "-"}
+                      </TableCell>
+                      <TableCell>
+                        {s.montoReal != null ? money(s.montoReal) : "-"}
+                      </TableCell>
+                      <TableCell>
+                        {d == null ? (
+                          "-"
+                        ) : (
+                          <Typography
+                            variant="body2"
+                            fontWeight={600}
+                            sx={{ color: diffColor(d) }}
+                          >
+                            {money(d)}
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <EstadoChip value={s.estado} />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="text.secondary">
+                          {s.observaciones || "-"}
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>
@@ -344,8 +355,8 @@ export default function Caja() {
             fullWidth
             label="Monto de Apertura"
             type="number"
-            value={montoApertura}
-            onChange={(e) => setMontoApertura(e.target.value)}
+            value={montoInicial}
+            onChange={(e) => setMontoInicial(e.target.value)}
             InputProps={{
               startAdornment: <Typography sx={{ mr: 1 }}>$</Typography>,
             }}
@@ -377,10 +388,10 @@ export default function Caja() {
             <Grid container spacing={2}>
               <Grid size={{ xs: 6 }}>
                 <Typography variant="body2" color="text.secondary">
-                  Monto Apertura
+                  Efectivo Apertura
                 </Typography>
                 <Typography variant="h6">
-                  ${abierta?.montoApertura.toLocaleString()}
+                  {money(abierta?.montoInicial ?? 0)}
                 </Typography>
               </Grid>
               <Grid size={{ xs: 6 }}>
@@ -388,15 +399,15 @@ export default function Caja() {
                   Ventas en Efectivo
                 </Typography>
                 <Typography variant="h6" color="success.main">
-                  ${ventasEfectivo.toLocaleString()}
+                  {money(ventasEfectivo)}
                 </Typography>
               </Grid>
               <Grid size={{ xs: 12 }}>
                 <Typography variant="body2" color="text.secondary">
-                  Monto Esperado
+                  Efectivo Esperado
                 </Typography>
                 <Typography variant="h5" color="primary" fontWeight={600}>
-                  ${montoEsperado.toLocaleString()}
+                  {money(montoEsperado)}
                 </Typography>
               </Grid>
             </Grid>
@@ -404,37 +415,35 @@ export default function Caja() {
 
           <TextField
             fullWidth
-            label="Monto Real en Caja"
+            label="Efectivo en Caja"
             type="number"
-            value={montoCierreReal}
-            onChange={(e) => setMontoCierreReal(e.target.value)}
+            value={montoReal}
+            onChange={(e) => setMontoReal(e.target.value)}
             InputProps={{
               startAdornment: <Typography sx={{ mr: 1 }}>$</Typography>,
             }}
             sx={{ mb: 2 }}
           />
 
-          {montoCierreReal && (
+          {montoReal && (
             <Alert
               severity={
-                parseFloat(montoCierreReal) === montoEsperado
+                parseFloat(montoReal) === montoEsperado
                   ? "success"
-                  : parseFloat(montoCierreReal) > montoEsperado
+                  : parseFloat(montoReal) > montoEsperado
                     ? "info"
                     : "error"
               }
               sx={{ mb: 2 }}
             >
               <Typography variant="body2" fontWeight={600}>
-                Diferencia: $
-                {Math.abs(parseFloat(montoCierreReal) - montoEsperado).toFixed(
-                  2
-                )}
+                Diferencia:{" "}
+                {money(Math.abs(parseFloat(montoReal) - montoEsperado))}
               </Typography>
               <Typography variant="body2">
-                {parseFloat(montoCierreReal) === montoEsperado
+                {parseFloat(montoReal) === montoEsperado
                   ? "Cierre exacto"
-                  : parseFloat(montoCierreReal) > montoEsperado
+                  : parseFloat(montoReal) > montoEsperado
                     ? "Sobra dinero"
                     : "Falta dinero"}
               </Typography>
@@ -457,7 +466,7 @@ export default function Caja() {
             variant="contained"
             color="error"
             onClick={onCerrar}
-            disabled={!montoCierreReal}
+            disabled={!montoReal}
           >
             Cerrar Caja
           </Button>

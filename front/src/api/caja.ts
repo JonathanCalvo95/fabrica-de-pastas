@@ -6,9 +6,9 @@ export interface CajaDto {
   id: string;
   apertura: string; // ISO
   cierre: string | null;
-  montoApertura: number;
-  montoCierreCalculado: number | null;
-  montoCierreReal: number | null;
+  montoInicial: number;
+  montoCalculado: number | null;
+  montoReal: number | null;
   usuarioId: string;
   estado: EstadoCaja;
   observaciones: string;
@@ -27,15 +27,21 @@ export async function getHistorialCaja(take = 50): Promise<CajaDto[]> {
   const { data } = await api.get<CajaDto[]>(`/caja?take=${take}`);
   return data;
 }
-export async function abrirCaja(montoApertura: number, observaciones?: string) {
+
+export async function getVentasEfectivo(): Promise<number> {
+  const { data } = await api.get<number>("/caja/cash-sales");
+  return data;
+}
+
+export async function abrirCaja(monto: number) {
   const { data } = await api.post<CajaDto>("/caja/open", {
-    montoApertura,
-    observaciones,
+    monto,
   });
   return data;
 }
+
 export async function cerrarCaja(params: {
-  montoCierreReal: number;
+  monto: number;
   observaciones?: string;
 }) {
   await api.post("/caja/close", params);

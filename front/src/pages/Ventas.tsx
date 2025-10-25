@@ -167,7 +167,7 @@ export default function Ventas() {
           variant="contained"
           startIcon={<Add />}
           disabled={loadingCaja || !caja} // deshabilitada si no hay caja abierta
-          onClick={() => navigate("/ventas/nueva")}
+          onClick={() => navigate("/ventas/crear")}
         >
           Nueva Venta
         </Button>
@@ -186,7 +186,7 @@ export default function Ventas() {
         <Alert severity="warning" sx={{ mb: 3 }}>
           <Typography variant="body2">
             <strong>Atención:</strong> Debe abrir una caja en la sección de
-            Gestión de Caja para registrar ventas en efectivo.
+            Gestión de Caja para registrar nuevas ventas.
           </Typography>
         </Alert>
       )}
@@ -206,9 +206,6 @@ export default function Ventas() {
             <Table>
               <TableHead>
                 <TableRow sx={{ bgcolor: "action.hover" }}>
-                  <TableCell>
-                    <strong>ID</strong>
-                  </TableCell>
                   <TableCell>
                     <strong>Fecha</strong>
                   </TableCell>
@@ -237,15 +234,6 @@ export default function Ventas() {
                       key={v.id}
                       sx={{ "&:hover": { bgcolor: "action.hover" } }}
                     >
-                      <TableCell>
-                        <Typography
-                          variant="body2"
-                          fontFamily="monospace"
-                          color="text.secondary"
-                        >
-                          #{v.id.slice(-6)}
-                        </Typography>
-                      </TableCell>
                       <TableCell>
                         <Typography fontWeight={500}>{fecha}</Typography>
                         <Typography variant="body2" color="text.secondary">

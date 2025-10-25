@@ -10,7 +10,7 @@ namespace back.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class ProductosController(IProductoService service, IMapper mapper) : ControllerBase
+public class ProductosController(IProductoService service, IMapper mapper) : BaseApiController
 {
     // GET: api/Productos
     [HttpGet]

@@ -8,11 +8,11 @@ namespace back.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class AuthController(UsuarioService usuarioService) : ControllerBase
+public class AuthController(UsuarioService usuarioService) : BaseApiController
 {
     [AllowAnonymous]
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest request)
+    public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
     {
         Usuario? usuario = await usuarioService.AuthenticateAsync(request.Usuario, request.Clave);
 
@@ -27,7 +27,7 @@ public class AuthController(UsuarioService usuarioService) : ControllerBase
 
     [AllowAnonymous]
     [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+    public async Task<IActionResult> Register([FromBody] RegisterRequestDto request)
     {
         try
         {
@@ -39,17 +39,4 @@ public class AuthController(UsuarioService usuarioService) : ControllerBase
             return BadRequest(ex.Message);
         }
     }
-}
-
-public class LoginRequest
-{
-    public string Usuario { get; set; } = string.Empty;
-    public string Clave { get; set; } = string.Empty;
-}
-
-public class RegisterRequest
-{
-    public string Usuario { get; set; } = string.Empty;
-    public string Clave { get; set; } = string.Empty;
-    public TipoRol Rol { get; set; }
 }

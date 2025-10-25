@@ -9,6 +9,6 @@ public interface IProductoRepository
     Task AddAsync(Producto producto);
     Task<bool> UpdateAsync(string id, Producto producto);
     Task<bool> DeleteAsync(string id);
-    Task<(bool ok, string? nombre, decimal precio, double stockRestante)> DecrementStockIfEnoughAsync(string productoId, double cantidad);
-    Task<Dictionary<string, (string Nombre, decimal Precio)>> GetBasicInfoAsync(IEnumerable<string> ids);
+    Task<(bool ok, string? descripcion, decimal precio, double stockRestante)> DecrementStockIfEnoughAsync(string productoId, double cantidad);
+    Task<IEnumerable<Producto>> GetInfoAsync(IEnumerable<string> ids);
 }

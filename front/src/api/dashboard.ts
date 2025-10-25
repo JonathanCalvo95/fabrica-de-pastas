@@ -6,20 +6,21 @@ export interface DashboardStatsDto {
   stockKg: number;
   stockUnidades: number;
   stockLitros: number;
+  stockCajas: number;
   gananciaNeta: number;
 }
 
 export interface RecentSaleDto {
   producto: string;
-  cantidad: string; // "5 kg"
-  importe: number; // 2450
-  fecha: string; // ISO
+  cantidad: string;
+  importe: number;
+  fecha: string;
 }
 
 export interface LowStockDto {
   producto: string;
-  actual: string; // "8 kg"
-  minimo: string; // "10 kg"
+  actual: string;
+  minimo: string;
 }
 
 export interface DashboardResponse {

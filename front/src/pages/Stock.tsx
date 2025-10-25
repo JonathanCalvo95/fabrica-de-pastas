@@ -15,37 +15,8 @@ import {
 } from "@mui/material";
 import { Warning, TrendingDown, TrendingUp } from "@mui/icons-material";
 import { get, updateStock, type Producto } from "../api/productos";
-
-type Movement = "in" | "out";
-
-interface StockItem {
-  id: string;
-  name: string;
-  current: number;
-  minimum: number;
-  maximum: number;
-  unit: string;
-  lastUpdate: string;
-  movement: Movement;
-}
-
-// Helpers
-const unidadLabel = (u: number) =>
-  ({ 0: "kg", 1: "unidad", 2: "litro" })[u] ?? String(u);
-
-// Mapea Producto (back) → StockItem (UI)
-function mapProductoToStockItem(p: Producto): StockItem {
-  return {
-    id: p.id,
-    name: p.nombre,
-    current: p.stock,
-    minimum: p.stockMinimo,
-    maximum: p.stockMaximo,
-    unit: unidadLabel(p.medida),
-    lastUpdate: "—",
-    movement: "in",
-  };
-}
+import { medidaLabel, categoriaLabel } from "../utils/enums";
+import pluralizeEs from "pluralize-es";
 
 const getStockColor = (current: number, minimum: number) => {
   if (current < minimum) return "error";
@@ -54,13 +25,13 @@ const getStockColor = (current: number, minimum: number) => {
 };
 
 export default function Stock() {
-  const [stockItems, setStockItems] = useState<StockItem[]>([]);
+  const [stockItems, setStockItems] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [openStock, setOpenStock] = useState(false);
   const [openMinStock, setOpenMinStock] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<StockItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<Producto | null>(null);
   const [stockAmount, setStockAmount] = useState(0);
   const [minStockAmount, setMinStockAmount] = useState(0);
   const [maxStockAmount, setMaxStockAmount] = useState(0);
@@ -71,7 +42,7 @@ export default function Stock() {
       try {
         setLoading(true);
         const productos = await get();
-        setStockItems(productos.map(mapProductoToStockItem));
+        setStockItems(productos);
         setLoadError(null);
       } catch (e) {
         setLoadError("No se pudo cargar el stock.");
@@ -82,41 +53,38 @@ export default function Stock() {
   }, []);
 
   const criticalItems = stockItems.filter(
-    (item) => item.current < item.minimum
+    (item) => item.stock < item.stockMinimo
   );
 
-  const handleOpenStock = (item: StockItem) => {
+  const handleOpenStock = (item: Producto) => {
     setSelectedItem(item);
     setStockAmount(0);
     setOpenStock(true);
   };
 
-  const handleOpenMinStock = (item: StockItem) => {
+  const handleOpenMinStock = (item: Producto) => {
     setSelectedItem(item);
-    setMinStockAmount(item.minimum);
-    setMaxStockAmount(item.maximum);
+    setMinStockAmount(item.stockMinimo);
+    setMaxStockAmount(item.stockMaximo);
     setOpenMinStock(true);
+  };
+
+  const reloadStockItems = async () => {
+    try {
+      const productos = await get();
+      setStockItems(productos);
+    } catch {
+      alert("No se pudo consultar el stock.");
+    }
   };
 
   const handleAddStock = async () => {
     if (!selectedItem) return;
 
-    const newStock = selectedItem.current + stockAmount;
+    const newStock = selectedItem.stock + stockAmount;
     try {
       await updateStock(selectedItem.id, newStock);
-
-      setStockItems((prev) =>
-        prev.map((it) =>
-          it.id === selectedItem.id
-            ? {
-                ...it,
-                current: newStock,
-                lastUpdate: "Ahora",
-                movement: stockAmount >= 0 ? "in" : "out",
-              }
-            : it
-        )
-      );
+      await reloadStockItems();
       setOpenStock(false);
     } catch {
       alert("No se pudo actualizar el stock.");
@@ -135,8 +103,7 @@ export default function Stock() {
     );
     setOpenMinStock(false);
 
-    // Cuando tengas min/max en el back, llamá:
-    // await updateProductoMinMax(selectedItem.id, minStockAmount, maxStockAmount);
+    //await updateProductoMinMax(selectedItem.id, minStockAmount, maxStockAmount);
   };
 
   if (loading) {
@@ -173,15 +140,23 @@ export default function Stock() {
           </Typography>
           <Typography variant="body2">
             Los siguientes productos requieren reposición urgente:{" "}
-            {criticalItems.map((item) => item.name).join(", ")}
+            {criticalItems
+              .map(
+                (item) =>
+                  categoriaLabel(item.categoria) + ": " + item.descripcion
+              )
+              .join(", ")}
           </Typography>
         </Alert>
       )}
 
       <Box sx={{ display: "flex", flexDirection: "column", gap: 3, mb: 4 }}>
         {stockItems.map((item) => {
-          const percentage = Math.min(100, (item.current / item.maximum) * 100);
-          const stockColor = getStockColor(item.current, item.minimum);
+          const percentage = Math.min(
+            100,
+            (item.stock / item.stockMaximo) * 100
+          );
+          const stockColor = getStockColor(item.stock, item.stockMinimo);
 
           return (
             <Card key={item.id} sx={{ "&:hover": { boxShadow: 6 } }}>
@@ -196,14 +171,14 @@ export default function Stock() {
                 >
                   <Box>
                     <Typography variant="h6" fontWeight={600} sx={{ mb: 0.5 }}>
-                      {item.name}
+                      {categoriaLabel(item.categoria) + ": " + item.descripcion}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Última actualización: {item.lastUpdate}
+                      Última actualización: {item.fechaActualizacion}
                     </Typography>
                   </Box>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    {item.movement === "in" ? (
+                    {item.stock >= item.stockMinimo ? (
                       <TrendingUp color="success" />
                     ) : (
                       <TrendingDown color="error" />
@@ -213,7 +188,8 @@ export default function Stock() {
                       fontWeight="bold"
                       color={`${stockColor}.main`}
                     >
-                      {item.current} {item.unit}
+                      {item.stock}{" "}
+                      {pluralizeEs(medidaLabel(item.medida), item.stock)}
                     </Typography>
                   </Box>
                 </Box>
@@ -227,10 +203,12 @@ export default function Stock() {
                     }}
                   >
                     <Typography variant="body2" color="text.secondary">
-                      Mínimo: {item.minimum} {item.unit}
+                      Mínimo: {item.stockMinimo}{" "}
+                      {pluralizeEs(medidaLabel(item.medida), item.stockMinimo)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Máximo: {item.maximum} {item.unit}
+                      Máximo: {item.stockMaximo}{" "}
+                      {pluralizeEs(medidaLabel(item.medida), item.stockMaximo)}
                     </Typography>
                   </Box>
                   <LinearProgress
@@ -280,7 +258,8 @@ export default function Stock() {
             </Typography>
             <Typography variant="h3">
               {stockItems.reduce(
-                (acc, it) => acc + (it.unit === "kg" ? it.current : 0),
+                (acc, it) =>
+                  acc + (medidaLabel(it.medida) === "kg" ? it.stock : 0),
                 0
               )}{" "}
               kg
@@ -327,17 +306,16 @@ export default function Stock() {
         <DialogTitle>Agregar Stock</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {selectedItem?.name}
+            {categoriaLabel(selectedItem?.categoria) +
+              ": " +
+              selectedItem?.descripcion}
           </Typography>
           <Typography variant="body2" sx={{ mb: 2 }}>
-            Stock actual:{" "}
-            <strong>
-              {selectedItem?.current} {selectedItem?.unit}
-            </strong>
+            Stock actual: <strong>{selectedItem?.stock}</strong>
           </Typography>
           <TextField
             label="Cantidad a agregar"
-            type="number"
+            type="text"
             value={stockAmount}
             onChange={(e) => setStockAmount(Number(e.target.value))}
             fullWidth
@@ -346,8 +324,11 @@ export default function Stock() {
           />
           {stockAmount > 0 && (
             <Typography variant="body2" color="primary" sx={{ mt: 2 }}>
-              Nuevo stock: {(selectedItem?.current || 0) + stockAmount}{" "}
-              {selectedItem?.unit}
+              Nuevo stock: {(selectedItem?.stock || 0) + stockAmount}{" "}
+              {pluralizeEs(
+                medidaLabel(selectedItem?.medida),
+                selectedItem?.stock
+              )}
             </Typography>
           )}
         </DialogContent>
@@ -373,7 +354,9 @@ export default function Stock() {
         <DialogTitle>Ajustar Stock Mínimo y Máximo</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {selectedItem?.name}
+            {categoriaLabel(selectedItem?.categoria) +
+              ": " +
+              selectedItem?.descripcion}
           </Typography>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 2 }}>
             <TextField
@@ -382,7 +365,7 @@ export default function Stock() {
               value={minStockAmount}
               onChange={(e) => setMinStockAmount(Number(e.target.value))}
               fullWidth
-              helperText={`Actual: ${selectedItem?.minimum} ${selectedItem?.unit}`}
+              helperText={`Actual: ${selectedItem?.stockMinimo} ${pluralizeEs(medidaLabel(selectedItem?.medida), selectedItem?.stockMinimo)}`}
             />
             <TextField
               label="Stock máximo"
@@ -390,7 +373,7 @@ export default function Stock() {
               value={maxStockAmount}
               onChange={(e) => setMaxStockAmount(Number(e.target.value))}
               fullWidth
-              helperText={`Actual: ${selectedItem?.maximum} ${selectedItem?.unit}`}
+              helperText={`Actual: ${selectedItem?.stockMaximo} ${pluralizeEs(medidaLabel(selectedItem?.medida), selectedItem?.stockMaximo)}`}
             />
           </Box>
         </DialogContent>

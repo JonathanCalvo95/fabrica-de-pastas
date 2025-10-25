@@ -10,6 +10,6 @@ public enum Medida
     Unidad = 2,
     [Description("Litro")]
     Litro = 3,
-    [Description("Plancha")]
-    Plancha = 4
+    [Description("Caja")]
+    Caja = 4
 }

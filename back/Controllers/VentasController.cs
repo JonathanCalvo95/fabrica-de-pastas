@@ -9,10 +9,8 @@ namespace back.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class VentasController(IVentaService service) : ControllerBase
+public class VentasController(IVentaService service) : BaseApiController
 {
-    private string GetUserId() => User?.FindFirst("sub")?.Value ?? User?.Identity?.Name ?? "unknown";
-
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<VentaListItemDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetLast([FromQuery] int take = 50)
@@ -35,7 +33,7 @@ public class VentasController(IVentaService service) : ControllerBase
     {
         try
         {
-            var created = await service.CreateAsync(dto, GetUserId());
+            var created = await service.CreateAsync(dto, UserId);
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
         catch (ArgumentException ex)

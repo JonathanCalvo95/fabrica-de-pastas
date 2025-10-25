@@ -8,7 +8,7 @@ import { useNavigate, useParams, Navigate } from "react-router-dom";
 /* ===== Tipos del back ===== */
 type ProductoDto = {
   id: string;
-  nombre: string;
+  variante: string;
   precio: number | string;
   categoria: string;
   activo?: boolean;
@@ -26,7 +26,7 @@ const money = (v: number | string) =>
 
 const mapDto = (p: ProductoDto) => ({
   categoria: (p.categoria || "SIN CATEGORÍA").trim(),
-  name: (p.nombre || "").trim(),
+  name: (p.variante || "").trim(),
   price: money(p.precio),
 });
 

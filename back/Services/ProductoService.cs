@@ -15,9 +15,9 @@ public class ProductoService(IProductoRepository repo) : IProductoService
 
     public async Task AddAsync(Producto producto)
     {
-        if (string.IsNullOrWhiteSpace(producto.Nombre))
+        if (string.IsNullOrWhiteSpace(producto.Descripcion))
         {
-            throw new ArgumentException("El nombre del producto es obligatorio.");
+            throw new ArgumentException("La descripción del producto es obligatorio.");
         }
         await repo.AddAsync(producto);
     }

@@ -24,20 +24,4 @@ public class VentaRepository(MongoDbContext ctx) : IVentaRepository
                          .Limit(take)
                          .ToListAsync();
     }
-
-    public async Task<decimal> GetTotalEfectivoDesdeAsync(DateTime desdeUtc)
-    {
-        var f = Builders<Venta>.Filter.Gte(v => v.Fecha, desdeUtc) &
-                Builders<Venta>.Filter.Eq(v => v.MetodoPago, MetodoPago.Efectivo) &
-                Builders<Venta>.Filter.Eq(v => v.Estado, EstadoVenta.Confirmada);
-
-        var total = _col.AsQueryable()
-                              .Where(v => v.Fecha >= desdeUtc &&
-                                          v.MetodoPago == MetodoPago.Efectivo &&
-                                          v.Estado == EstadoVenta.Confirmada)
-                              .Select(v => v.Total)
-                              .ToList();
-
-        return total.Sum();
-    }
 }

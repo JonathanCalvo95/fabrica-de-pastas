@@ -16,6 +16,7 @@ import {
 import { alpha } from "@mui/material/styles";
 import { theme } from "../theme/Theme";
 import { getDashboard, type DashboardResponse } from "../api/dashboard";
+import pluralizeEs from "pluralize-es";
 
 type StatItem = {
   title: string;
@@ -63,7 +64,7 @@ export default function Dashboard() {
       },
       {
         title: "Stock Total",
-        value: `${data.stats.stockKg.toLocaleString("es-AR")} kg / ${data.stats.stockUnidades} u / ${data.stats.stockLitros} l`,
+        value: `${data.stats.stockCajas + pluralizeEs(" caja", data.stats.stockCajas)} / ${data.stats.stockKg.toLocaleString("es-AR")} kg / ${data.stats.stockUnidades} u / ${data.stats.stockLitros} l`,
         change: undefined,
         icon: Warehouse,
         trend: "down",
@@ -222,7 +223,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Low stock */}
+        {/* Alerta de Stock Bajo */}
         <Card>
           <CardContent>
             <Typography variant="h3" sx={{ mb: 3 }}>

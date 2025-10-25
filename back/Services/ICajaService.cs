@@ -6,6 +6,7 @@ public interface ICajaService
 {
     Task<Caja?> GetOpenAsync();
     Task<List<Caja>> GetHistoryAsync(int take = 50);
-    Task<Caja> OpenAsync(string usuarioId, decimal montoApertura, string? observaciones);
-    Task<bool> CloseAsync(string? usuarioId, decimal montoCierreReal, string? observaciones);
+    Task<Caja> OpenAsync(string usuarioId, CajaRequestDto req);
+    Task<bool> CloseAsync(string? usuarioId, CajaRequestDto req);
+    Task<decimal> GetVentasEfectivoAsync();
 }

@@ -2,14 +2,13 @@ import api from "./api";
 
 export interface Producto {
   id: string;
-  nombre: string;
+  categoria: number; // enum Categoria
   descripcion: string;
   precio: number;
   medida: number; // enum Medida
   stock: number;
   stockMinimo: number;
   stockMaximo: number;
-  categoria: number; // enum Categoria
   activo: boolean;
   fechaCreacion: string;
   fechaActualizacion: string;

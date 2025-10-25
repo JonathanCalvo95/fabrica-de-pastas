@@ -12,25 +12,44 @@ export type VentaListItem = {
   estado: EstadoVenta;
 };
 
-export interface VentaCreateItem {
-  productoId: string;
-  cantidad: number;
-}
 export interface VentaCreate {
-  productos: VentaCreateItem[];
+  productos: VentaItem[];
   metodoPago: number;
   observaciones?: string;
 }
+export interface VentaItem {
+  productoId: string;
+  cantidad: number;
+}
+
+export type VentaDetail = {
+  id: string;
+  fecha: string;
+  total: number;
+  metodoPago: MetodoPago;
+  estado: EstadoVenta;
+  cajaId?: string | null;
+  observaciones?: string | null;
+  cliente?: string | null;
+  productos: Array<{
+    productoId: string;
+    categoria: number;
+    descripcion: string;
+    cantidad: number;
+    precioUnitario: number;
+    subtotal?: number;
+  }>;
+};
+
+export const getVenta = async (id: string) => {
+  const { data } = await api.get<VentaDetail>(`/ventas/${id}`);
+  return data;
+};
 
 export const getVentas = async (take = 50) => {
   const { data } = await api.get<VentaListItem[]>(`/ventas`, {
     params: { take },
   });
-  return data;
-};
-
-export const getVenta = async (id: string) => {
-  const { data } = await api.get(`/ventas/${id}`);
   return data;
 };
 

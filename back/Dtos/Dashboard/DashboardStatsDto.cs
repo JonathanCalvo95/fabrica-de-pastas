@@ -6,5 +6,6 @@ public record DashboardStatsDto(
     decimal StockKg,
     double StockUnidades,
     double StockLitros,
+    double StockCajas,
     decimal GananciaNeta
 );

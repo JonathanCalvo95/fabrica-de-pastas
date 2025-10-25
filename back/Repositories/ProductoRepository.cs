@@ -14,7 +14,7 @@ public class ProductoRepository(MongoDbContext context) : IProductoRepository
             ? Builders<Producto>.Filter.Eq(p => p.Activo, true)
             : Builders<Producto>.Filter.Empty;
 
-        return await _productos.Find(_ => true).ToListAsync();
+        return await _productos.Find(filter).ToListAsync();
     }
 
     public async Task<Producto?> GetByIdAsync(string id)
@@ -47,7 +47,7 @@ public class ProductoRepository(MongoDbContext context) : IProductoRepository
         return result.IsAcknowledged && result.ModifiedCount > 0;
     }
 
-    public async Task<(bool ok, string? nombre, decimal precio, double stockRestante)>
+    public async Task<(bool ok, string? descripcion, decimal precio, double stockRestante)>
         DecrementStockIfEnoughAsync(string productoId, double cantidad)
     {
         var filter = Builders<Producto>.Filter.Where(p => p.Id == productoId && p.Activo && p.Stock >= cantidad);
@@ -63,13 +63,13 @@ public class ProductoRepository(MongoDbContext context) : IProductoRepository
 
         if (updated is null) return (false, null, 0m, 0);
 
-        return (true, updated.Nombre, updated.Precio, updated.Stock);
+        return (true, updated.Descripcion, updated.Precio, updated.Stock);
     }
 
-    public async Task<Dictionary<string, (string Nombre, decimal Precio)>> GetBasicInfoAsync(IEnumerable<string> ids)
+    public async Task<IEnumerable<Producto>> GetInfoAsync(IEnumerable<string> ids)
     {
         var set = ids.ToHashSet();
         var list = await _productos.Find(p => set.Contains(p.Id)).ToListAsync();
-        return list.ToDictionary(p => p.Id, p => (p.Nombre, p.Precio));
+        return list;
     }
 }

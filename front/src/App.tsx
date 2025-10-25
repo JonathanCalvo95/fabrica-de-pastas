@@ -9,7 +9,7 @@ import AppLayout from "./AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Productos from "./pages/Productos";
 import Ventas from "./pages/Ventas";
-import NuevaVenta from "./pages/NuevaVenta";
+import CrearVenta from "./pages/CrearVenta";
 import DetalleVenta from "./pages/DetalleVenta";
 import Stock from "./pages/Stock";
 import Caja from "./pages/Caja";
@@ -36,7 +36,7 @@ export default function App() {
               <Route index element={<Dashboard />} />
               <Route path="productos" element={<Productos />} />
               <Route path="ventas" element={<Ventas />} />
-              <Route path="ventas/nueva" element={<NuevaVenta />} />
+              <Route path="ventas/crear" element={<CrearVenta />} />
               <Route path="ventas/:id" element={<DetalleVenta />} />
               <Route path="stock" element={<Stock />} />
               <Route path="caja" element={<Caja />} />

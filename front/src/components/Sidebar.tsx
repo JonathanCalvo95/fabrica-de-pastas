@@ -29,10 +29,10 @@ import {
 
 const menuItems = [
   { title: "Dashboard", icon: DashboardIcon, path: "/" },
-  { title: "Productos", icon: InventoryIcon, path: "/productos" },
+  { title: "Caja", icon: AccountBalance, path: "/caja" },
   { title: "Ventas", icon: ShoppingCart, path: "/ventas" },
   { title: "Stock", icon: Warehouse, path: "/stock" },
-  { title: "Caja", icon: AccountBalance, path: "/caja" },
+  { title: "Productos", icon: InventoryIcon, path: "/productos" },
 ];
 
 const preciosItems = [
