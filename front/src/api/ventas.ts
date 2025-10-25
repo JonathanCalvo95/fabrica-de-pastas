@@ -13,7 +13,7 @@ export type VentaListItem = {
 };
 
 export interface VentaCreate {
-  productos: VentaItem[];
+  items: VentaItem[];
   metodoPago: number;
   observaciones?: string;
 }
@@ -31,7 +31,7 @@ export type VentaDetail = {
   cajaId?: string | null;
   observaciones?: string | null;
   cliente?: string | null;
-  productos: Array<{
+  items: Array<{
     productoId: string;
     categoria: number;
     descripcion: string;

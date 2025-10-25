@@ -13,6 +13,11 @@ public class ProductoService(IProductoRepository repo) : IProductoService
         return await repo.GetByIdAsync(id);
     }
 
+    public async Task<IEnumerable<Producto>> GetInfoAsync(IEnumerable<string> ids)
+    {
+        return await repo.GetInfoAsync(ids);
+    }
+
     public async Task AddAsync(Producto producto)
     {
         if (string.IsNullOrWhiteSpace(producto.Descripcion))

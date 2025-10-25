@@ -36,6 +36,7 @@ builder.Services.AddScoped<UsuarioService>();
 builder.Services.AddScoped<IProductoService, ProductoService>();
 builder.Services.AddScoped<ICajaService, CajaService>();
 builder.Services.AddScoped<IVentaService, VentaService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 
 // AutoMapper
 builder.Services.AddAutoMapper(typeof(Program));

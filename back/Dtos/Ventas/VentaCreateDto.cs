@@ -4,7 +4,7 @@ namespace back.Dtos.Ventas;
 
 public class VentaCreateDto
 {
-    public List<VentaCreateItemDto> Productos { get; set; } = [];
+    public List<VentaCreateItemDto> Items { get; set; } = [];
     public MetodoPago MetodoPago { get; set; }
     public string? Observaciones { get; set; }
 }

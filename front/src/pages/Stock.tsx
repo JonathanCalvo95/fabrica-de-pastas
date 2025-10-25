@@ -15,8 +15,9 @@ import {
 } from "@mui/material";
 import { Warning, TrendingDown, TrendingUp } from "@mui/icons-material";
 import { get, updateStock, type Producto } from "../api/productos";
-import { medidaLabel, categoriaLabel } from "../utils/enums";
-import pluralizeEs from "pluralize-es";
+import { medidaLabel } from "../utils/enums";
+import { pluralAuto } from "../utils/plural";
+import { formatName } from "../utils/formatters";
 
 const getStockColor = (current: number, minimum: number) => {
   if (current < minimum) return "error";
@@ -141,10 +142,7 @@ export default function Stock() {
           <Typography variant="body2">
             Los siguientes productos requieren reposición urgente:{" "}
             {criticalItems
-              .map(
-                (item) =>
-                  categoriaLabel(item.categoria) + ": " + item.descripcion
-              )
+              .map((item) => formatName(item.categoria, item.descripcion))
               .join(", ")}
           </Typography>
         </Alert>
@@ -171,7 +169,7 @@ export default function Stock() {
                 >
                   <Box>
                     <Typography variant="h6" fontWeight={600} sx={{ mb: 0.5 }}>
-                      {categoriaLabel(item.categoria) + ": " + item.descripcion}
+                      {formatName(item.categoria, item.descripcion)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Última actualización: {item.fechaActualizacion}
@@ -189,7 +187,7 @@ export default function Stock() {
                       color={`${stockColor}.main`}
                     >
                       {item.stock}{" "}
-                      {pluralizeEs(medidaLabel(item.medida), item.stock)}
+                      {pluralAuto(medidaLabel(item.medida), item.stock)}
                     </Typography>
                   </Box>
                 </Box>
@@ -204,11 +202,11 @@ export default function Stock() {
                   >
                     <Typography variant="body2" color="text.secondary">
                       Mínimo: {item.stockMinimo}{" "}
-                      {pluralizeEs(medidaLabel(item.medida), item.stockMinimo)}
+                      {pluralAuto(medidaLabel(item.medida), item.stockMinimo)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Máximo: {item.stockMaximo}{" "}
-                      {pluralizeEs(medidaLabel(item.medida), item.stockMaximo)}
+                      {pluralAuto(medidaLabel(item.medida), item.stockMaximo)}
                     </Typography>
                   </Box>
                   <LinearProgress
@@ -265,7 +263,7 @@ export default function Stock() {
               kg
             </Typography>
             <Typography variant="body2" color="warning.main" sx={{ mt: 1 }}>
-              — vs. mes anterior
+              - vs. mes anterior
             </Typography>
           </CardContent>
         </Card>
@@ -306,9 +304,7 @@ export default function Stock() {
         <DialogTitle>Agregar Stock</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {categoriaLabel(selectedItem?.categoria) +
-              ": " +
-              selectedItem?.descripcion}
+            {formatName(selectedItem?.categoria, selectedItem?.descripcion)}
           </Typography>
           <Typography variant="body2" sx={{ mb: 2 }}>
             Stock actual: <strong>{selectedItem?.stock}</strong>
@@ -325,7 +321,7 @@ export default function Stock() {
           {stockAmount > 0 && (
             <Typography variant="body2" color="primary" sx={{ mt: 2 }}>
               Nuevo stock: {(selectedItem?.stock || 0) + stockAmount}{" "}
-              {pluralizeEs(
+              {pluralAuto(
                 medidaLabel(selectedItem?.medida),
                 selectedItem?.stock
               )}
@@ -354,9 +350,7 @@ export default function Stock() {
         <DialogTitle>Ajustar Stock Mínimo y Máximo</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {categoriaLabel(selectedItem?.categoria) +
-              ": " +
-              selectedItem?.descripcion}
+            {formatName(selectedItem?.categoria, selectedItem?.descripcion)}
           </Typography>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 2 }}>
             <TextField
@@ -365,7 +359,10 @@ export default function Stock() {
               value={minStockAmount}
               onChange={(e) => setMinStockAmount(Number(e.target.value))}
               fullWidth
-              helperText={`Actual: ${selectedItem?.stockMinimo} ${pluralizeEs(medidaLabel(selectedItem?.medida), selectedItem?.stockMinimo)}`}
+              helperText={`Actual: ${selectedItem?.stockMinimo} ${pluralAuto(
+                medidaLabel(selectedItem?.medida),
+                selectedItem?.stockMinimo
+              )}`}
             />
             <TextField
               label="Stock máximo"
@@ -373,7 +370,10 @@ export default function Stock() {
               value={maxStockAmount}
               onChange={(e) => setMaxStockAmount(Number(e.target.value))}
               fullWidth
-              helperText={`Actual: ${selectedItem?.stockMaximo} ${pluralizeEs(medidaLabel(selectedItem?.medida), selectedItem?.stockMaximo)}`}
+              helperText={`Actual: ${selectedItem?.stockMaximo} ${pluralAuto(
+                medidaLabel(selectedItem?.medida),
+                selectedItem?.stockMaximo
+              )}`}
             />
           </Box>
         </DialogContent>

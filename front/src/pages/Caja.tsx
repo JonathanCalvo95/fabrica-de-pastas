@@ -179,7 +179,7 @@ export default function Caja() {
             Caja Abierta – Sesión #{abierta.id}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Apertura: {new Date(abierta.apertura).toLocaleString()} | Monto
+            Apertura: {new Date(abierta.apertura).toLocaleString()} | Efectivo
             Inicial: {money(abierta.montoInicial)}
           </Typography>
         </Alert>
@@ -240,7 +240,7 @@ export default function Caja() {
                   color="text.secondary"
                   sx={{ mb: 0.5 }}
                 >
-                  Monto Esperado
+                  Efectivo Esperado
                 </Typography>
                 <Typography variant="h3">{money(montoEsperado)}</Typography>
               </CardContent>
@@ -266,13 +266,13 @@ export default function Caja() {
                     <strong>Cierre</strong>
                   </TableCell>
                   <TableCell>
-                    <strong>Monto Inicial</strong>
+                    <strong>Efectivo Inicial</strong>
                   </TableCell>
                   <TableCell>
-                    <strong>Monto Calculado</strong>
+                    <strong>Efectivo Calculado</strong>
                   </TableCell>
                   <TableCell>
-                    <strong>Monto Real</strong>
+                    <strong>Efectivo en Caja</strong>
                   </TableCell>
                   <TableCell>
                     <strong>Diferencia</strong>

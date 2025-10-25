@@ -11,7 +11,7 @@ public class Venta
     public string Id { get; set; } = string.Empty;
 
     public DateTime Fecha { get; set; } = DateTime.UtcNow;
-    public List<VentaItem> Productos { get; set; } = [];
+    public List<VentaItem> Items { get; set; } = [];
     public decimal Total { get; set; }
     public MetodoPago MetodoPago { get; set; }
     public string? UsuarioId { get; set; }

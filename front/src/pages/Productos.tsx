@@ -20,7 +20,7 @@ import {
 import { Add, Edit, Delete } from "@mui/icons-material";
 import { get, post, put, del, type Producto } from "../api/productos";
 import { medidaLabel, categoriaLabel, CATEGORY_OPTIONS } from "../utils/enums";
-import pluralizeEs from "pluralize-es";
+import { pluralAuto } from "../utils/plural";
 
 export default function Productos() {
   // estado principal
@@ -195,7 +195,11 @@ export default function Productos() {
                   <Typography variant="h6" fontWeight={600} sx={{ mb: 1 }}>
                     {categoriaLabel(p.categoria)}
                   </Typography>
-                  <Chip label={p.descripcion} size="small" color="secondary" />
+                  <Chip
+                    label={p.descripcion}
+                    size="small"
+                    sx={{ bgcolor: "primary.light" }}
+                  />
                 </Box>
                 <Box>
                   <IconButton size="small" onClick={() => handleOpenEdit(p)}>
@@ -216,7 +220,7 @@ export default function Productos() {
                   Stock bajo mínimo{" "}
                   {p.stockMinimo +
                     " " +
-                    pluralizeEs(medidaLabel(p.medida), p.stockMinimo)}
+                    pluralAuto(medidaLabel(p.medida), p.stockMinimo)}
                 </Alert>
               )}
 

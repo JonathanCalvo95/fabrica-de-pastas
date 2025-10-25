@@ -7,19 +7,14 @@ import {
   Paper,
   Alert,
 } from "@mui/material";
-import {
-  TrendingUp,
-  Inventory,
-  ShoppingCart,
-  Warehouse,
-} from "@mui/icons-material";
+import { Inventory, ShoppingCart, ReceiptLong } from "@mui/icons-material";
 import { alpha } from "@mui/material/styles";
 import { theme } from "../theme/Theme";
 import { getDashboard, type DashboardResponse } from "../api/dashboard";
-import pluralizeEs from "pluralize-es";
+import { formatName } from "../utils/formatters";
 
 type StatItem = {
-  title: string;
+  title: string | React.ReactNode;
   value: string | number;
   change?: string;
   icon: React.ElementType;
@@ -47,34 +42,41 @@ export default function Dashboard() {
 
   const stats: StatItem[] = useMemo(() => {
     if (!data) return [];
+
+    const pct = (v?: number) =>
+      typeof v === "number"
+        ? `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`
+        : undefined;
+
     return [
       {
         title: "Ventas del Mes",
         value: `$${data.stats.ventasDelMes.toLocaleString("es-AR")}`,
-        change: undefined,
+        change: pct(data.stats.ventasDelMesChangePct),
         icon: ShoppingCart,
-        trend: "up",
+        trend: (data.stats.ventasDelMesChangePct ?? 0) >= 0 ? "up" : "down",
       },
       {
         title: "Productos Activos",
         value: data.stats.productosActivos,
-        change: undefined,
+        change:
+          typeof data.stats.productosActivosChange === "number"
+            ? `${data.stats.productosActivosChange >= 0 ? "+" : ""}${
+                data.stats.productosActivosChange
+              }`
+            : undefined,
         icon: Inventory,
-        trend: "up",
+        trend: (data.stats.productosActivosChange ?? 0) >= 0 ? "up" : "down",
       },
       {
-        title: "Stock Total",
-        value: `${data.stats.stockCajas + pluralizeEs(" caja", data.stats.stockCajas)} / ${data.stats.stockKg.toLocaleString("es-AR")} kg / ${data.stats.stockUnidades} u / ${data.stats.stockLitros} l`,
-        change: undefined,
-        icon: Warehouse,
-        trend: "down",
-      },
-      {
-        title: "Ganancia Neta",
-        value: `$${data.stats.gananciaNeta.toLocaleString("es-AR")}`,
-        change: undefined,
-        icon: TrendingUp,
-        trend: "up",
+        title: "Ticket Promedio",
+        value: `$${data.stats.ticketPromedio.toLocaleString("es-AR")}`, // 👈 formateado
+        change:
+          typeof data.stats.ticketPromedioChangePct === "number"
+            ? `${data.stats.ticketPromedioChangePct >= 0 ? "+" : ""}${data.stats.ticketPromedioChangePct.toFixed(1)}%`
+            : undefined,
+        icon: ReceiptLong,
+        trend: (data.stats.ticketPromedioChangePct ?? 0) >= 0 ? "up" : "down",
       },
     ];
   }, [data]);
@@ -104,29 +106,34 @@ export default function Dashboard() {
         </Typography>
       </Box>
 
-      {/* Stats */}
+      {/* ===== KPI Cards ===== */}
       <Box
         sx={{
           display: "grid",
           gridTemplateColumns: {
             xs: "1fr",
             sm: "repeat(2, 1fr)",
-            lg: "repeat(4, 1fr)",
+            lg: "repeat(3, 1fr)",
           },
           gap: 3,
           mb: 4,
         }}
       >
+        {/* 3 cards */}
         {stats.map((stat) => (
           <Card
-            key={stat.title}
+            key={
+              typeof stat.title === "string"
+                ? stat.title
+                : JSON.stringify(stat.title)
+            }
             sx={{ "&:hover": { boxShadow: 6 }, cursor: "pointer" }}
           >
             <CardContent>
               <Box
                 sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}
               >
-                <Box>
+                <Box sx={{ flex: 1, pr: 2 }}>
                   <Typography
                     variant="body2"
                     color="text.secondary"
@@ -134,6 +141,7 @@ export default function Dashboard() {
                   >
                     {stat.title}
                   </Typography>
+
                   <Typography variant="h3" sx={{ mb: 1 }}>
                     {stat.value}
                   </Typography>
@@ -171,7 +179,6 @@ export default function Dashboard() {
         ))}
       </Box>
 
-      {/* Ventas Recientes */}
       <Box
         sx={{
           display: "grid",
@@ -203,7 +210,9 @@ export default function Dashboard() {
                     }}
                   >
                     <Box>
-                      <Typography fontWeight={500}>{sale.producto}</Typography>
+                      <Typography fontWeight={500}>
+                        {formatName(sale.categoria, sale.descripcion)}
+                      </Typography>
                       <Typography variant="body2" color="text.secondary">
                         {sale.cantidad}
                       </Typography>
@@ -223,7 +232,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Alerta de Stock Bajo */}
         <Card>
           <CardContent>
             <Typography variant="h3" sx={{ mb: 3 }}>
@@ -252,16 +260,16 @@ export default function Dashboard() {
                       color="error.main"
                       sx={{ mb: 1 }}
                     >
-                      {item.producto}
+                      {formatName(item.categoria, item.descripcion)}
                     </Typography>
                     <Box
                       sx={{ display: "flex", justifyContent: "space-between" }}
                     >
                       <Typography variant="body2" color="text.primary">
-                        Stock actual: <strong>{item.actual}</strong>
+                        Stock actual: <strong>{item.stock}</strong>
                       </Typography>
                       <Typography variant="body2" color="text.primary">
-                        Mínimo: <strong>{item.minimo}</strong>
+                        Mínimo: <strong>{item.stockMinimo}</strong>
                       </Typography>
                     </Box>
                   </Paper>

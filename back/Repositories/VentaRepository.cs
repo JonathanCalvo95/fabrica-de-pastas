@@ -24,4 +24,20 @@ public class VentaRepository(MongoDbContext ctx) : IVentaRepository
                          .Limit(take)
                          .ToListAsync();
     }
+
+    public async Task<List<Venta>> GetByDateRangeAsync(DateTime fromUtc, DateTime toUtc, EstadoVenta[]? estados = null)
+    {
+        var builder = Builders<Venta>.Filter;
+        var fFecha = builder.Gte(x => x.Fecha, fromUtc) & builder.Lte(x => x.Fecha, toUtc);
+
+        FilterDefinition<Venta> fEstado = FilterDefinition<Venta>.Empty;
+        if (estados is { Length: > 0 })
+            fEstado = builder.In(x => x.Estado, estados);
+
+        var filter = fFecha & fEstado;
+
+        return await _col.Find(filter)
+                         .SortBy(x => x.Fecha)
+                         .ToListAsync();
+    }
 }

@@ -8,8 +8,8 @@ export default function ServerError() {
       title="Error del servidor"
       message="Ocurrió un problema inesperado. Intenta nuevamente en unos minutos."
       Icon={ReportProblem}
-      actionLabel="Reintentar"
-      onActionClick={() => window.location.reload()}
+      actionLabel="Volver al inicio"
+      actionTo="/"
     />
   );
 }

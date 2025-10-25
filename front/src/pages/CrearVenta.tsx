@@ -26,11 +26,10 @@ import {
 } from "@mui/material";
 import { Add, Delete, ArrowBack, ShoppingCart } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-
 import { get as getProductos, type Producto } from "../api/productos";
 import { crearVenta, type MetodoPago } from "../api/ventas";
 import { getCajaActual, type CajaDto } from "../api/caja";
-import { categoriaLabel } from "../utils/enums";
+import { formatName } from "../utils/formatters";
 
 interface ProductoVenta {
   id: string;
@@ -121,7 +120,7 @@ export default function CrearVenta() {
         ...prev,
         {
           id,
-          nombre: categoriaLabel(categoria) + ": " + descripcion,
+          nombre: formatName(categoria, descripcion),
           precio,
           cantidad,
           subtotal: precio * cantidad,
@@ -185,7 +184,7 @@ export default function CrearVenta() {
 
     try {
       await crearVenta({
-        productos: productosVenta.map((p) => ({
+        items: productosVenta.map((p) => ({
           productoId: p.id,
           cantidad: p.cantidad,
         })),
@@ -266,9 +265,7 @@ export default function CrearVenta() {
                   options={productos}
                   loading={loadingProductos}
                   getOptionLabel={(o) =>
-                    `${
-                      categoriaLabel(o?.categoria) + ": " + o?.descripcion
-                    } — ${money(o.precio)}`
+                    `${formatName(o.categoria, o.descripcion)} - ${money(o.precio)}`
                   }
                   value={productoSeleccionado}
                   onChange={(_, v) => setProductoSeleccionado(v)}

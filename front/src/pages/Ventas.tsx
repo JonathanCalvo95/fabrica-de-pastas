@@ -242,7 +242,11 @@ export default function Ventas() {
                       </TableCell>
                       <TableCell>
                         <Typography color="text.secondary">
-                          {v.items}
+                          {Array.isArray(v.items)
+                            ? `${v.items.length} ${v.items.length === 1 ? "item" : "items"}`
+                            : typeof v.items === "number"
+                              ? `${v.items} ${v.items === 1 ? "item" : "items"}`
+                              : "—"}
                         </Typography>
                       </TableCell>
                       <TableCell>

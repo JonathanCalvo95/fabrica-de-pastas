@@ -16,7 +16,7 @@ public class VentaService(
         if (dto is null)
             throw new ArgumentNullException(nameof(dto));
 
-        if (dto.Productos is null || dto.Productos.Count == 0)
+        if (dto.Items is null || dto.Items.Count == 0)
             throw new ArgumentException("Debe incluir al menos un producto.");
 
         // Caja abierta (si la hay, se asocia)
@@ -24,12 +24,12 @@ public class VentaService(
         var cajaId = caja?.Id;
 
         // Info básica de productos
-        var productoIds = dto.Productos.Select(p => p.ProductoId).ToArray();
+        var productoIds = dto.Items.Select(p => p.ProductoId).ToArray();
         var productos = await productosRepo.GetInfoAsync(productoIds);
 
         var items = new List<VentaItem>();
 
-        foreach (var it in dto.Productos)
+        foreach (var it in dto.Items)
         {
             if (!productos.ToDictionary(p => p.Id).TryGetValue(it.ProductoId, out var prod))
                 throw new ArgumentException($"Producto {it.ProductoId} no existe.");
@@ -55,7 +55,7 @@ public class VentaService(
         var venta = new Venta
         {
             Fecha = DateTime.UtcNow,
-            Productos = items,
+            Items = items,
             Total = total,
             MetodoPago = dto.MetodoPago,
             UsuarioId = usuarioId,
@@ -75,7 +75,7 @@ public class VentaService(
         var v = await ventasRepo.GetByIdAsync(id);
         if (v is null) return null;
 
-        var productos = await productosRepo.GetInfoAsync(v.Productos.Select(p => p.ProductoId).ToArray());
+        var productos = await productosRepo.GetInfoAsync(v.Items.Select(p => p.ProductoId).ToArray());
         return ToDetailDto(v, productos);
     }
 
@@ -89,11 +89,17 @@ public class VentaService(
         {
             Id = v.Id,
             Fecha = v.Fecha,
-            Items = v.Productos.Count,
+            Items = v.Items,
             Total = v.Total,
             MetodoPago = v.MetodoPago,
             Estado = v.Estado
         }).ToList();
+    }
+
+    public async Task<List<Venta>> GetByDateRangeAsync(DateTime fromUtc, DateTime toUtc, EstadoVenta[]? estados = null)
+    {
+        estados ??= [EstadoVenta.Confirmada, EstadoVenta.Anulada, EstadoVenta.Devuelta];
+        return await ventasRepo.GetByDateRangeAsync(fromUtc, toUtc, estados);
     }
 
     private static VentaDetailDto ToDetailDto(
@@ -108,7 +114,7 @@ public class VentaService(
             CajaId = v.CajaId ?? string.Empty,
             Estado = v.Estado,
             Total = v.Total,
-            Productos = v.Productos.Select(p =>
+            Items = v.Items.Select(p =>
             {
                 var prod = productos.First(x => x.Id == p.ProductoId);
                 return new VentaItemDto
