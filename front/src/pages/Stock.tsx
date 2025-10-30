@@ -12,10 +12,11 @@ import {
   DialogContent,
   DialogActions,
   TextField,
+  Chip,
 } from "@mui/material";
 import { Warning, TrendingDown, TrendingUp } from "@mui/icons-material";
 import { get, updateStock, type Producto } from "../api/productos";
-import { medidaLabel } from "../utils/enums";
+import { medidaLabel, categoriaLabel } from "../utils/enums";
 import { pluralAuto } from "../utils/plural";
 import { formatName } from "../utils/formatters";
 
@@ -25,17 +26,25 @@ const getStockColor = (current: number, minimum: number) => {
   return "success";
 };
 
+const money = (v: number) =>
+  v.toLocaleString("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    maximumFractionDigits: 0,
+  });
+
 export default function Stock() {
   const [stockItems, setStockItems] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [openStock, setOpenStock] = useState(false);
-  const [openMinStock, setOpenMinStock] = useState(false);
+  // diálogos
+  const [openAdd, setOpenAdd] = useState(false);
+  const [openReduce, setOpenReduce] = useState(false);
+
   const [selectedItem, setSelectedItem] = useState<Producto | null>(null);
-  const [stockAmount, setStockAmount] = useState(0);
-  const [minStockAmount, setMinStockAmount] = useState(0);
-  const [maxStockAmount, setMaxStockAmount] = useState(0);
+  const [addAmount, setAddAmount] = useState(0);
+  const [reduceAmount, setReduceAmount] = useState(0);
 
   // Cargar desde el backend
   useEffect(() => {
@@ -45,7 +54,7 @@ export default function Stock() {
         const productos = await get();
         setStockItems(productos);
         setLoadError(null);
-      } catch (e) {
+      } catch {
         setLoadError("No se pudo cargar el stock.");
       } finally {
         setLoading(false);
@@ -53,60 +62,65 @@ export default function Stock() {
     })();
   }, []);
 
-  const criticalItems = stockItems.filter(
-    (item) => item.stock < item.stockMinimo
+  const reload = async () => {
+    const productos = await get();
+    setStockItems(productos);
+  };
+
+  const criticalItems = stockItems.filter((i) => i.stock < i.stockMinimo);
+  const healthyItems = stockItems.filter(
+    (i) => i.stock >= i.stockMinimo && i.stock <= i.stockMaximo
+  );
+  const healthPct =
+    stockItems.length === 0
+      ? 0
+      : Math.round((healthyItems.length / stockItems.length) * 100);
+
+  // Valor del inventario (precio * stock)
+  const inventoryValue = stockItems.reduce(
+    (acc, it) => acc + (Number(it.precio) || 0) * (Number(it.stock) || 0),
+    0
   );
 
-  const handleOpenStock = (item: Producto) => {
+  // Abrir diálogos
+  const handleOpenAdd = (item: Producto) => {
     setSelectedItem(item);
-    setStockAmount(0);
-    setOpenStock(true);
+    setAddAmount(0);
+    setOpenAdd(true);
   };
-
-  const handleOpenMinStock = (item: Producto) => {
+  const handleOpenReduce = (item: Producto) => {
     setSelectedItem(item);
-    setMinStockAmount(item.stockMinimo);
-    setMaxStockAmount(item.stockMaximo);
-    setOpenMinStock(true);
+    setReduceAmount(0);
+    setOpenReduce(true);
   };
 
-  const reloadStockItems = async () => {
-    try {
-      const productos = await get();
-      setStockItems(productos);
-    } catch {
-      alert("No se pudo consultar el stock.");
-    }
-  };
-
+  // Acciones
   const handleAddStock = async () => {
     if (!selectedItem) return;
-
-    const newStock = selectedItem.stock + stockAmount;
+    const newStock = selectedItem.stock + addAmount;
     try {
       await updateStock(selectedItem.id, newStock);
-      await reloadStockItems();
-      setOpenStock(false);
+      await reload();
+      setOpenAdd(false);
     } catch {
       alert("No se pudo actualizar el stock.");
     }
   };
 
-  // Ajustar mínimos en UI (mientras no existan en el back)
-  const handleUpdateMinStock = () => {
+  const handleReduceStock = async () => {
     if (!selectedItem) return;
-    setStockItems((prev) =>
-      prev.map((it) =>
-        it.id === selectedItem.id
-          ? { ...it, minimum: minStockAmount, maximum: maxStockAmount }
-          : it
-      )
-    );
-    setOpenMinStock(false);
-
-    //await updateProductoMinMax(selectedItem.id, minStockAmount, maxStockAmount);
+    const qty = Math.max(0, reduceAmount);
+    const newStock = Math.max(0, selectedItem.stock - qty);
+    try {
+      await updateStock(selectedItem.id, newStock);
+      await reload();
+      setOpenReduce(false);
+    } catch {
+      alert("No se pudo actualizar el stock.");
+    }
   };
 
+  // UI estados
   if (loading) {
     return (
       <Box sx={{ p: 4 }}>
@@ -114,7 +128,6 @@ export default function Stock() {
       </Box>
     );
   }
-
   if (loadError) {
     return (
       <Box sx={{ p: 4 }}>
@@ -125,7 +138,7 @@ export default function Stock() {
 
   return (
     <Box sx={{ p: 4 }}>
-      <Box sx={{ mb: 4 }}>
+      <Box sx={{ mb: 3 }}>
         <Typography variant="h4" sx={{ mb: 1, fontWeight: 600 }}>
           Control de Stock
         </Typography>
@@ -134,26 +147,84 @@ export default function Stock() {
         </Typography>
       </Box>
 
+      {/* Alerta */}
       {criticalItems.length > 0 && (
         <Alert severity="error" icon={<Warning />} sx={{ mb: 4 }}>
-          <Typography fontWeight={600} sx={{ mb: 1 }}>
+          <Typography fontWeight={600}>
             Alerta: {criticalItems.length} producto(s) bajo mínimo
-          </Typography>
-          <Typography variant="body2">
-            Los siguientes productos requieren reposición urgente:{" "}
-            {criticalItems
-              .map((item) => formatName(item.categoria, item.descripcion))
-              .join(", ")}
           </Typography>
         </Alert>
       )}
 
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 3, mb: 4 }}>
+      {/* KPIs */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
+          gap: 3,
+          mb: 4,
+        }}
+      >
+        <Card>
+          <CardContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+              Salud del Inventario
+            </Typography>
+            <Typography variant="h3" color="success.main" fontWeight={700}>
+              {healthPct}%
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              {healthyItems.length} de {stockItems.length} productos entre
+              mínimo y máximo
+            </Typography>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+              Productos Críticos
+            </Typography>
+            <Typography variant="h3" color="error.main" fontWeight={700}>
+              {criticalItems.length}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              Requieren atención
+            </Typography>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+              Valor del Inventario
+            </Typography>
+            <Typography variant="h3" color="primary.main" fontWeight={700}>
+              {money(inventoryValue)}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              Estimado (precio × stock)
+            </Typography>
+          </CardContent>
+        </Card>
+      </Box>
+
+      {/* GRID */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            md: "repeat(2, minmax(0, 1fr))",
+            lg: "repeat(3, minmax(0, 1fr))",
+          },
+          gap: 3,
+          mb: 4,
+        }}
+      >
         {stockItems.map((item) => {
-          const percentage = Math.min(
-            100,
-            (item.stock / item.stockMaximo) * 100
-          );
+          const max = Math.max(1, item.stockMaximo ?? 1);
+          const percentage = Math.min(100, (item.stock / max) * 100);
           const stockColor = getStockColor(item.stock, item.stockMinimo);
 
           return (
@@ -165,15 +236,18 @@ export default function Stock() {
                     justifyContent: "space-between",
                     alignItems: "flex-start",
                     mb: 2,
+                    gap: 2,
                   }}
                 >
-                  <Box>
-                    <Typography variant="h6" fontWeight={600} sx={{ mb: 0.5 }}>
-                      {formatName(item.categoria, item.descripcion)}
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="h6" fontWeight={600} sx={{ mb: 1 }}>
+                      {categoriaLabel(item.categoria)}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Última actualización: {item.fechaActualizacion}
-                    </Typography>
+                    <Chip
+                      label={item.descripcion}
+                      size="small"
+                      sx={{ bgcolor: "primary.light" }}
+                    />
                   </Box>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     {item.stock >= item.stockMinimo ? (
@@ -182,7 +256,7 @@ export default function Stock() {
                       <TrendingDown color="error" />
                     )}
                     <Typography
-                      variant="h4"
+                      variant="h5"
                       fontWeight="bold"
                       color={`${stockColor}.main`}
                     >
@@ -193,6 +267,9 @@ export default function Stock() {
                 </Box>
 
                 <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Última actualización: {item.fechaActualizacion}
+                  </Typography>
                   <Box
                     sx={{
                       display: "flex",
@@ -222,7 +299,7 @@ export default function Stock() {
                     variant="outlined"
                     size="small"
                     fullWidth
-                    onClick={() => handleOpenStock(item)}
+                    onClick={() => handleOpenAdd(item)}
                   >
                     Agregar Stock
                   </Button>
@@ -230,9 +307,9 @@ export default function Stock() {
                     variant="outlined"
                     size="small"
                     fullWidth
-                    onClick={() => handleOpenMinStock(item)}
+                    onClick={() => handleOpenReduce(item)}
                   >
-                    Ajustar Mínimos
+                    Reducir Stock
                   </Button>
                 </Box>
               </CardContent>
@@ -241,63 +318,10 @@ export default function Stock() {
         })}
       </Box>
 
-      {/* KPIs (placeholder con datos locales) */}
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
-          gap: 3,
-        }}
-      >
-        <Card>
-          <CardContent>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-              Stock Total
-            </Typography>
-            <Typography variant="h3">
-              {stockItems.reduce(
-                (acc, it) =>
-                  acc + (medidaLabel(it.medida) === "kg" ? it.stock : 0),
-                0
-              )}{" "}
-              kg
-            </Typography>
-            <Typography variant="body2" color="warning.main" sx={{ mt: 1 }}>
-              - vs. mes anterior
-            </Typography>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-              Productos Críticos
-            </Typography>
-            <Typography variant="h3" color="error.main">
-              {criticalItems.length}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              Requieren atención
-            </Typography>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-              Valor del Inventario
-            </Typography>
-            <Typography variant="h3" color="primary">
-              — {/* cuando tengas costo/precio x stock, calculás acá */}
-            </Typography>
-          </CardContent>
-        </Card>
-      </Box>
-
       {/* Dialog Agregar Stock */}
       <Dialog
-        open={openStock}
-        onClose={() => setOpenStock(false)}
+        open={openAdd}
+        onClose={() => setOpenAdd(false)}
         maxWidth="xs"
         fullWidth
       >
@@ -311,76 +335,83 @@ export default function Stock() {
           </Typography>
           <TextField
             label="Cantidad a agregar"
-            type="text"
-            value={stockAmount}
-            onChange={(e) => setStockAmount(Number(e.target.value))}
+            type="number"
+            value={addAmount}
+            onChange={(e) => setAddAmount(Number(e.target.value))}
             fullWidth
             autoFocus
             sx={{ mt: 2 }}
           />
-          {stockAmount > 0 && (
+          {addAmount > 0 && (
             <Typography variant="body2" color="primary" sx={{ mt: 2 }}>
-              Nuevo stock: {(selectedItem?.stock || 0) + stockAmount}{" "}
+              Nuevo stock: {(selectedItem?.stock || 0) + addAmount}{" "}
               {pluralAuto(
                 medidaLabel(selectedItem?.medida),
-                selectedItem?.stock
+                (selectedItem?.stock || 0) + addAmount
               )}
             </Typography>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenStock(false)}>Cancelar</Button>
+          <Button onClick={() => setOpenAdd(false)}>Cancelar</Button>
           <Button
-            onClick={handleAddStock}
             variant="contained"
-            disabled={stockAmount <= 0}
+            onClick={handleAddStock}
+            disabled={addAmount <= 0}
           >
             Agregar
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Dialog Ajustar Mínimos */}
+      {/* Dialog Reducir Stock */}
       <Dialog
-        open={openMinStock}
-        onClose={() => setOpenMinStock(false)}
+        open={openReduce}
+        onClose={() => setOpenReduce(false)}
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle>Ajustar Stock Mínimo y Máximo</DialogTitle>
+        <DialogTitle>Reducir Stock</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             {formatName(selectedItem?.categoria, selectedItem?.descripcion)}
           </Typography>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 2 }}>
-            <TextField
-              label="Stock mínimo"
-              type="number"
-              value={minStockAmount}
-              onChange={(e) => setMinStockAmount(Number(e.target.value))}
-              fullWidth
-              helperText={`Actual: ${selectedItem?.stockMinimo} ${pluralAuto(
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            Stock actual: <strong>{selectedItem?.stock}</strong>
+          </Typography>
+          <TextField
+            label="Cantidad a descontar"
+            type="number"
+            value={reduceAmount}
+            onChange={(e) => setReduceAmount(Number(e.target.value))}
+            fullWidth
+            autoFocus
+            sx={{ mt: 2 }}
+            helperText={
+              reduceAmount > (selectedItem?.stock ?? 0)
+                ? "Se ajustará a 0 (no puede quedar negativo)"
+                : " "
+            }
+          />
+          {reduceAmount > 0 && (
+            <Typography variant="body2" color="warning.main" sx={{ mt: 2 }}>
+              Nuevo stock:{" "}
+              {Math.max(0, (selectedItem?.stock || 0) - reduceAmount)}{" "}
+              {pluralAuto(
                 medidaLabel(selectedItem?.medida),
-                selectedItem?.stockMinimo
-              )}`}
-            />
-            <TextField
-              label="Stock máximo"
-              type="number"
-              value={maxStockAmount}
-              onChange={(e) => setMaxStockAmount(Number(e.target.value))}
-              fullWidth
-              helperText={`Actual: ${selectedItem?.stockMaximo} ${pluralAuto(
-                medidaLabel(selectedItem?.medida),
-                selectedItem?.stockMaximo
-              )}`}
-            />
-          </Box>
+                Math.max(0, (selectedItem?.stock || 0) - reduceAmount)
+              )}
+            </Typography>
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenMinStock(false)}>Cancelar</Button>
-          <Button onClick={handleUpdateMinStock} variant="contained">
-            Actualizar
+          <Button onClick={() => setOpenReduce(false)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            onClick={handleReduceStock}
+            disabled={reduceAmount <= 0}
+          >
+            Descontar
           </Button>
         </DialogActions>
       </Dialog>

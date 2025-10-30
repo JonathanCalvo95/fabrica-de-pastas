@@ -1,18 +1,11 @@
-import { useEffect, useState, useCallback } from "react";
-import { Box, Typography, Paper, IconButton } from "@mui/material";
-import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
-import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
-import axios from "axios";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { Box, Typography, Paper } from "@mui/material";
 import { useNavigate, useParams, Navigate } from "react-router-dom";
+import { categoriaLabel } from "../utils/enums";
+import { get, type Producto } from "../api/productos";
 
-/* ===== Tipos del back ===== */
-type ProductoDto = {
-  id: string;
-  variante: string;
-  precio: number | string;
-  categoria: string;
-  activo?: boolean;
-};
+/* ===== Config ===== */
+const REFRESH_MS = 45_000; // intervalo de actualización (ms)
 
 /* ===== Helpers ===== */
 const money = (v: number | string) =>
@@ -24,75 +17,130 @@ const money = (v: number | string) =>
         maximumFractionDigits: 0,
       });
 
-const mapDto = (p: ProductoDto) => ({
-  categoria: (p.categoria || "SIN CATEGORÍA").trim(),
-  name: (p.variante || "").trim(),
-  price: money(p.precio),
-});
+type RowStatus = "ok" | "low" | "out";
 
-function chunk<T>(arr: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
-  return out;
+const mapDto = (p: Producto) => {
+  const status: RowStatus =
+    p.stock <= 0 ? "out" : p.stock < (p.stockMinimo ?? 0) ? "low" : "ok";
+  return {
+    categoria: categoriaLabel(p.categoria),
+    name: (p.descripcion || "").trim(),
+    price: money(p.precio),
+    status,
+    _sig: `${p.id}|${p.precio}|${p.stock}|${p.stockMinimo}|${p.activo}|${p.fechaActualizacion}`,
+  };
+};
+
+/* Crea una firma de todo el dataset para evitar renders si no hay cambios */
+function signatureOf(mapped: ReturnType<typeof mapDto>[]) {
+  // Ordenamos por categoria+name para que la firma sea estable
+  const sorted = [...mapped].sort((a, b) =>
+    (a.categoria + a.name).localeCompare(b.categoria + b.name)
+  );
+  return sorted.map((x) => x._sig).join("§");
 }
 
+/* ===== Agrupación lógica de categorías en pantallas ===== */
+const GRUPOS_PANTALLAS: number[][] = [
+  [1, 2, 3], // Ravioles, Canelones, Agnolottis
+  [4, 5], // Tallarines, Ñoquis
+  [6, 7, 8, 9, 10, 11, 13, 15], // Sorrentinos, Capelettis, Tortellettis, Salsas, Tartas, Postres, Empanadas
+];
+
 /* ===== UI ===== */
+function StatusPill({ status }: { status: RowStatus }) {
+  if (status === "ok") return null;
+  const cfg =
+    status === "out"
+      ? { bg: "#ffdede", bd: "#d32f2f", fg: "#b71c1c", text: "SIN STOCK" }
+      : { bg: "#fff1da", bd: "#ef6c00", fg: "#e65100", text: "STOCK BAJO" };
+  return (
+    <Box
+      component="span"
+      sx={{
+        ml: 1,
+        px: 0.7,
+        py: 0.1,
+        borderRadius: "4px",
+        fontSize: 11,
+        fontWeight: 900,
+        letterSpacing: 0.3,
+        color: cfg.fg,
+        background: cfg.bg,
+        border: `1px solid ${cfg.bd}`,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {cfg.text}
+    </Box>
+  );
+}
+
 function Fila({
   name,
   price,
+  status,
   last,
 }: {
   name: string;
   price: string;
+  status: RowStatus;
   last?: boolean;
 }) {
+  const priceColor = status === "out" ? "#9e9e9e" : "#8e1a1a";
+  const nameStyle =
+    status === "out"
+      ? {
+          color: "#777",
+          textDecoration: "line-through",
+          opacity: 0.8,
+        }
+      : status === "low"
+        ? { color: "#b95b00" }
+        : { color: "#a01818" };
+
   return (
     <Box
       sx={{
         display: "grid",
-        gridTemplateColumns: "1fr 72px",
+        gridTemplateColumns: "1fr 88px",
         alignItems: "center",
         minHeight: 36,
         px: 2,
-        borderBottom: last ? "none" : "2px solid #b33a3a",
+        borderBottom: last ? "none" : "2px solid #3E2723",
+        gap: 1,
       }}
     >
-      <Typography
-        sx={{
-          fontSize: { xs: 13, md: 14, lg: 15 },
-          color: "#a01818",
-          fontWeight: 800,
-          textTransform: "uppercase",
-          letterSpacing: ".6px",
-          pr: 1,
-          lineHeight: 1.15,
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-        }}
-      >
-        {name}
-      </Typography>
+      <Box sx={{ minWidth: 0, display: "flex", alignItems: "center" }}>
+        <Typography
+          sx={{
+            fontSize: { xs: 13, md: 14, lg: 15 },
+            fontWeight: 800,
+            textTransform: "uppercase",
+            letterSpacing: ".6px",
+            pr: 1,
+            lineHeight: 1.15,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            ...nameStyle,
+          }}
+          title={name}
+        >
+          {name}
+        </Typography>
+        <StatusPill status={status} />
+      </Box>
 
       <Box
         sx={{
           justifySelf: "end",
-          background: "#8e1a1a", // bordó
-          color: "#fff",
-          borderRadius: "2px",
-          px: 1.2,
-          py: 0.4,
-          minWidth: 64,
-          textAlign: "center",
-          fontWeight: 900,
-          boxShadow:
-            "inset 0 -1px 0 rgba(0,0,0,.35), 0 0 0 1px rgba(0,0,0,.15)",
+          color: priceColor,
+          opacity: status === "out" ? 0.75 : 1,
         }}
+        title={price}
       >
-        <Typography
-          component="span"
-          sx={{ fontSize: { xs: 12, md: 13 }, fontWeight: 900 }}
-        >
+        <Typography sx={{ fontSize: { md: 15 }, fontWeight: 900 }}>
           {price}
         </Typography>
       </Box>
@@ -102,33 +150,29 @@ function Fila({
 
 function Tablero({
   name,
-  subtitle,
   productos,
 }: {
   name: string;
-  subtitle?: string;
-  productos: { name: string; price: string }[];
+  productos: { name: string; price: string; status: RowStatus }[];
 }) {
   return (
     <Paper
       elevation={0}
       sx={{
-        height: "100%",
-        border: "8px solid #6b3f2b",
-        borderRadius: "4px",
-        background: "#fff",
-        display: "flex",
-        flexDirection: "column",
+        border: "4px solid #3E2723",
+        borderRadius: 1,
         overflow: "hidden",
+        bgcolor: "#FAFAFA",
+        height: "100%",
       }}
     >
       <Box
         sx={{
-          background: "#5a3a2b",
+          background: "#3E2723",
           color: "#fff",
           px: 2,
           py: 1,
-          borderBottom: "3px solid #6b3f2b",
+          borderBottom: "3px solid #3E2723",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -137,43 +181,7 @@ function Tablero({
         <Typography sx={{ fontWeight: 900, letterSpacing: 1.6, fontSize: 16 }}>
           {name}
         </Typography>
-        <Box
-          sx={{
-            background: "#8e1a1a",
-            color: "#fff",
-            fontWeight: 900,
-            fontSize: 10,
-            px: 0.8,
-            py: 0.2,
-            borderRadius: "2px",
-          }}
-        >
-          KG
-        </Box>
       </Box>
-
-      {subtitle && (
-        <Box
-          sx={{
-            background: "#f3eee9",
-            color: "#5a3a2b",
-            px: 2,
-            py: 0.8,
-            borderBottom: "2px solid #b17e6a",
-          }}
-        >
-          <Typography
-            sx={{
-              fontWeight: 800,
-              textTransform: "uppercase",
-              letterSpacing: 0.6,
-              fontSize: 12,
-            }}
-          >
-            {subtitle}
-          </Typography>
-        </Box>
-      )}
 
       <Box
         sx={{
@@ -188,6 +196,7 @@ function Tablero({
             key={p.name + i}
             name={p.name}
             price={p.price}
+            status={p.status}
             last={i === productos.length - 1}
           />
         ))}
@@ -197,116 +206,133 @@ function Tablero({
 }
 
 /* ===== Página ===== */
-export default function PreciosPantallas() {
-  const { n } = useParams(); // "/precio:n"
-  const pageFromUrl = Math.max(1, Number(n || 1)); // 1-based
+export default function Precios() {
+  const { n } = useParams();
+  const pageFromUrl = Math.max(1, Number(n || 1));
   const [loading, setLoading] = useState(true);
   const [pages, setPages] = useState<
-    { name: string; productos: { name: string; price: string }[] }[][]
+    {
+      name: string;
+      productos: { name: string; price: string; status: RowStatus }[];
+    }[][]
   >([]);
   const navigate = useNavigate();
 
-  // Fetch y armado de páginas (2 por página)
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        setLoading(true);
-        const token = localStorage.getItem("token");
-        const { data } = await axios.get<ProductoDto[]>("/api/Productos", {
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        });
+  const lastSig = useRef<string>(""); // firma de último dataset
+  const aliveRef = useRef(true);
 
-        const activos = (data ?? []).filter((d) => d.activo !== false);
-        // agrupar por categoría preservando orden
-        const buckets = new Map<string, { name: string; price: string }[]>();
-        for (const dto of activos) {
-          const m = mapDto(dto);
-          if (!buckets.has(m.categoria)) buckets.set(m.categoria, []);
-          buckets.get(m.categoria)!.push({ name: m.name, price: m.price });
-        }
-        const categorias = Array.from(buckets, ([name, productos]) => ({
-          name,
-          productos,
-        }));
-        const grouped = chunk(categorias, 2); // <-- DOS por página
-
-        if (alive) setPages(grouped);
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
+  const buildPages = useCallback((mapped: ReturnType<typeof mapDto>[]) => {
+    // agrupar por categoría
+    const buckets = new Map<
+      string,
+      { name: string; price: string; status: RowStatus }[]
+    >();
+    for (const m of mapped) {
+      if (!buckets.has(m.categoria)) buckets.set(m.categoria, []);
+      buckets.get(m.categoria)!.push({
+        name: m.name,
+        price: m.price,
+        status: m.status,
+      });
+    }
+    // construir páginas en base a GRUPOS_PANTALLAS
+    const pagesBuilt = GRUPOS_PANTALLAS.map((grupo) =>
+      grupo
+        .map((catId) => categoriaLabel(catId))
+        .filter((n) => buckets.has(n))
+        .map((n) => ({ name: n, productos: buckets.get(n)! }))
+    );
+    return pagesBuilt;
   }, []);
 
-  const maxPage = Math.max(1, pages.length); // 1-based total
+  const fetchAndMaybeUpdate = useCallback(async () => {
+    try {
+      const data = await get();
+      const activos = (data ?? []).filter((d) => d.activo !== false);
+      const mapped = activos.map(mapDto);
+      const sig = signatureOf(mapped);
+      if (sig !== lastSig.current) {
+        lastSig.current = sig;
+        if (aliveRef.current) setPages(buildPages(mapped));
+      }
+    } catch {
+      // silencioso; próximo tick volverá a intentar
+    } finally {
+      if (aliveRef.current) setLoading(false);
+    }
+  }, [buildPages]);
 
-  // si la URL pide una página inexistente, redirijo a la última válida
-  if (!loading && (pageFromUrl < 1 || pageFromUrl > maxPage)) {
-    return (
-      <Navigate
-        to={`/precio${Math.min(Math.max(pageFromUrl, 1), maxPage)}`}
-        replace
-      />
-    );
-  }
+  // Primera carga
+  useEffect(() => {
+    aliveRef.current = true;
+    setLoading(true);
+    fetchAndMaybeUpdate();
+    return () => {
+      aliveRef.current = false;
+    };
+  }, [fetchAndMaybeUpdate]);
 
+  // Polling periódico
+  useEffect(() => {
+    const id = window.setInterval(fetchAndMaybeUpdate, REFRESH_MS);
+    return () => window.clearInterval(id);
+  }, [fetchAndMaybeUpdate]);
+
+  // Refetch al volver al foco (cuando la pestaña vuelve a estar visible)
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === "visible") fetchAndMaybeUpdate();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", onVis);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", onVis);
+    };
+  }, [fetchAndMaybeUpdate]);
+
+  const maxPage = Math.max(1, pages.length);
   const current = pages[pageFromUrl - 1];
 
   const go = useCallback(
     (target: number) => {
-      const next = ((target - 1 + maxPage) % maxPage) + 1; // wrap 1..max
-      navigate(`/precio${next}`, { replace: true });
+      const next = ((target - 1 + maxPage) % maxPage) + 1;
+      navigate(`/precio/${next}`, { replace: true });
     },
     [navigate, maxPage]
   );
 
-  // teclas ← / →
+  // Atajos de teclado: ← → y F (pantalla completa)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowLeft") go(pageFromUrl - 1);
       if (e.key === "ArrowRight") go(pageFromUrl + 1);
+      if (e.key.toLowerCase() === "f") {
+        const elem = document.documentElement;
+        if (!document.fullscreenElement) elem.requestFullscreen?.();
+        else document.exitFullscreen?.();
+      }
+      if (e.key.toLowerCase() === "r") {
+        // refresh manual
+        fetchAndMaybeUpdate();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [go, pageFromUrl]);
+  }, [go, pageFromUrl, fetchAndMaybeUpdate]);
+
+  if (!loading && (pageFromUrl < 1 || pageFromUrl > maxPage)) {
+    return <Navigate to={`/precio/1`} replace />;
+  }
 
   return (
     <Box
-      sx={{ minHeight: "100dvh", bgcolor: "#efe6d2", p: { xs: 1.5, md: 3 } }}
+      sx={{
+        minHeight: "100dvh",
+        bgcolor: "#f3e8c9",
+        p: { xs: 1.5, md: 3 },
+      }}
     >
-      {/* Controles */}
-      {!loading && maxPage > 1 && (
-        <Box
-          sx={{
-            position: "fixed",
-            top: 12,
-            left: 12,
-            right: 12,
-            display: "flex",
-            justifyContent: "space-between",
-            pointerEvents: "none",
-            zIndex: 10,
-          }}
-        >
-          <IconButton
-            onClick={() => go(pageFromUrl - 1)}
-            sx={{ pointerEvents: "auto", bgcolor: "rgba(0,0,0,.1)" }}
-          >
-            <ArrowBackIosNewIcon />
-          </IconButton>
-          <IconButton
-            onClick={() => go(pageFromUrl + 1)}
-            sx={{ pointerEvents: "auto", bgcolor: "rgba(0,0,0,.1)" }}
-          >
-            <ArrowForwardIosIcon />
-          </IconButton>
-        </Box>
-      )}
-
-      {/* Contenido */}
       {loading ? (
         <Box sx={{ height: "80dvh", display: "grid", placeItems: "center" }}>
           <Typography variant="h6" sx={{ color: "#5a3a2b" }}>
@@ -321,15 +347,55 @@ export default function PreciosPantallas() {
             mx: "auto",
             display: "grid",
             gap: { xs: 1.5, md: 3 },
-            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0,1fr))" }, // siempre 2 en desktop
+            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0,1fr))" },
             alignItems: "stretch",
           }}
         >
           {current?.map((c) => (
-            <Tablero key={c.name} name={c.name} productos={c.productos} />
+            <Tablero
+              key={c.name}
+              name={c.name.toLocaleUpperCase()}
+              productos={c.productos}
+            />
           ))}
         </Box>
       )}
+
+      {/* Botón pantalla completa */}
+      <Box
+        sx={{
+          position: "fixed",
+          bottom: 16,
+          right: 16,
+          zIndex: 50,
+        }}
+      >
+        <button
+          onClick={() => {
+            const elem = document.documentElement;
+            if (!document.fullscreenElement) {
+              elem.requestFullscreen?.();
+            } else {
+              document.exitFullscreen?.();
+            }
+          }}
+          style={{
+            background: "#8e1a1a",
+            color: "#fff",
+            border: "none",
+            borderRadius: "50%",
+            width: "48px",
+            height: "48px",
+            fontSize: "22px",
+            fontWeight: "bold",
+            cursor: "pointer",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
+          }}
+          title="Pantalla completa (tecla F) — Refrescar (tecla R)"
+        >
+          ⛶
+        </button>
+      </Box>
     </Box>
   );
 }

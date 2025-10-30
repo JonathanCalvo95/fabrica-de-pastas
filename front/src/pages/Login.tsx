@@ -17,9 +17,11 @@ import {
   Login as LoginIcon,
   AttachMoney,
 } from "@mui/icons-material";
+import { useTheme } from "@mui/material/styles";
 import { login, type ILoginRequest } from "../api/auth";
 
 export default function Login() {
+  const theme = useTheme();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [usuario, setUsuario] = useState("");
@@ -50,7 +52,7 @@ export default function Login() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        background: theme.customGradients.pasta,
       }}
     >
       <Container maxWidth="sm">
@@ -62,6 +64,7 @@ export default function Login() {
             flexDirection: "column",
             alignItems: "center",
             borderRadius: 2,
+            bgcolor: "background.paper",
           }}
         >
           <LoginIcon sx={{ fontSize: 60, color: "primary.main", mb: 2 }} />
@@ -141,13 +144,7 @@ export default function Login() {
               fullWidth
               variant="contained"
               size="large"
-              sx={{
-                py: 1.5,
-                mb: 2,
-                fontWeight: "bold",
-                textTransform: "none",
-                fontSize: "1.1rem",
-              }}
+              sx={{ py: 1.5, mb: 2, fontWeight: "bold", fontSize: "1.1rem" }}
             >
               Ingresar
             </Button>
@@ -165,8 +162,9 @@ export default function Login() {
                 color="text.secondary"
                 sx={{ mb: 2, textAlign: "center" }}
               >
-                Listado de precios
+                Listados de precios
               </Typography>
+
               <Box
                 sx={{
                   display: "flex",
@@ -175,13 +173,13 @@ export default function Login() {
                   justifyContent: "center",
                 }}
               >
-                {[1, 2, 3, 4, 5, 6].map((num) => (
+                {[1, 2, 3].map((num) => (
                   <Button
                     key={num}
                     variant="outlined"
                     size="small"
                     startIcon={<AttachMoney />}
-                    onClick={() => navigate(`/precios${num}`)}
+                    onClick={() => navigate(`/precios/${num}`)}
                     sx={{ minWidth: "90px" }}
                   >
                     Precios {num}

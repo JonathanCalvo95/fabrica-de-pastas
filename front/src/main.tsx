@@ -5,13 +5,19 @@ import "@fontsource/roboto/400.css";
 import "@fontsource/roboto/500.css";
 import "@fontsource/roboto/700.css";
 import "./index.css";
+
+import { ThemeProvider, CssBaseline } from "@mui/material";
+import { theme } from "./theme/Theme";
 import App from "./App";
 import AppErrorBoundary from "./components/AppErrorBoundary";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <AppErrorBoundary>
-      <App />
-    </AppErrorBoundary>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <AppErrorBoundary>
+        <App />
+      </AppErrorBoundary>
+    </ThemeProvider>
   </StrictMode>
 );

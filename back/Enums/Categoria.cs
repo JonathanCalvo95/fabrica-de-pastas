@@ -20,18 +20,16 @@ public enum Categoria
     Capelettis = 7,
     [Description("Tortellettis")]
     Tortellettis = 8,
-    [Description("Lasagna")]
-    Lasagna = 9,
     [Description("Salsas")]
-    Salsas = 10,
+    Salsas = 9,
     [Description("Tartas")]
-    Tartas = 11,
+    Tartas = 10,
     [Description("Varios")]
-    Varios = 12,
+    Varios = 11,
     [Description("Postres")]
-    Postres = 13,
+    Postres = 12,
     [Description("Pizzas")]
-    Pizzas = 14,
+    Pizzas = 13,
     [Description("Empanadas")]
-    Empanadas = 15
+    Empanadas = 14
 }

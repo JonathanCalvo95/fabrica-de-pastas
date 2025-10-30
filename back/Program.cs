@@ -4,26 +4,13 @@ using back.Repositories;
 using back.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using MongoDB.Driver;
+using back.Migrations;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Config Mongo
 builder.Services.Configure<MongoDbConfiguration>(builder.Configuration.GetSection("MongoDbConfiguration"));
 builder.Services.AddSingleton<MongoDbContext>();
-
-builder.Services.AddSingleton<IMongoClient>(_ =>
-{
-    var cs = builder.Configuration["MongoDbConfiguration:ConnectionString"];
-    return new MongoClient(cs);
-});
-
-builder.Services.AddSingleton(sp =>
-{
-    var client = sp.GetRequiredService<IMongoClient>();
-    var dbName = builder.Configuration["MongoDbConfiguration:Database"];
-    return client.GetDatabase(dbName);
-});
 
 // Repositorios
 builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
@@ -81,6 +68,17 @@ builder.Services.AddCors(options =>
         .AllowAnyMethod());
 });
 
+// MIGRACIONES
+builder.Services.AddSingleton<IMigration, M001_SeedUsuarios>();
+builder.Services.AddSingleton<IMigration, M002_SeedProductos>();
+builder.Services.AddSingleton<IMigration, M003_SeedCajasVentas>();
+builder.Services.AddSingleton(sp =>
+{
+    var ctx = sp.GetRequiredService<MongoDbContext>();
+    var migrations = sp.GetServices<IMigration>();
+    return new MigrationRunner(ctx.Database, migrations);
+});
+
 var app = builder.Build();
 
 // Middleware
@@ -92,5 +90,13 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// EJECUTA MIGRACIONES AL INICIO
+using (var scope = app.Services.CreateScope())
+{
+    var sp = scope.ServiceProvider;
+    var runner = sp.GetRequiredService<MigrationRunner>();
+    await runner.RunAsync(sp);
+}
 
 app.Run();

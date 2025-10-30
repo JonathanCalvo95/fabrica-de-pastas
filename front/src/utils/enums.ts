@@ -17,13 +17,12 @@ export const CATEGORY_OPTIONS: { value: number; label: string }[] = [
   { value: 6, label: "Sorrentinos" },
   { value: 7, label: "Capelettis" },
   { value: 8, label: "Tortellettis" },
-  { value: 9, label: "Lasagna" },
-  { value: 10, label: "Salsas" },
-  { value: 11, label: "Tartas" },
-  { value: 12, label: "Varios" },
-  { value: 13, label: "Postres" },
-  { value: 14, label: "Pizzas" },
-  { value: 15, label: "Empanadas" },
+  { value: 9, label: "Salsas" },
+  { value: 10, label: "Tartas" },
+  { value: 11, label: "Varios" },
+  { value: 12, label: "Postres" },
+  { value: 13, label: "Pizzas" },
+  { value: 14, label: "Empanadas" },
 ];
 
 export const categoriaLabel = (v?: number): string =>

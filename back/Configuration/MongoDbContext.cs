@@ -14,9 +14,10 @@ public class MongoDbContext
         _database = client.GetDatabase(configuration.Value.DatabaseName);
     }
 
+    public IMongoDatabase Database => _database;
+
     public IMongoCollection<Usuario> Usuarios => _database.GetCollection<Usuario>("Usuarios");
     public IMongoCollection<Producto> Productos => _database.GetCollection<Producto>("Productos");
     public IMongoCollection<Caja> Cajas => _database.GetCollection<Caja>("Cajas");
     public IMongoCollection<Venta> Ventas => _database.GetCollection<Venta>("Ventas");
 }
-

@@ -14,6 +14,7 @@ public class ProductosController(IProductoService service, IMapper mapper) : Bas
 {
     // GET: api/Productos
     [HttpGet]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(IEnumerable<ProductoListItemDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<ProductoListItemDto>>> GetAll()
     {

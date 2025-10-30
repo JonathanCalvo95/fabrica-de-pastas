@@ -36,9 +36,9 @@ const menuItems = [
 ];
 
 const preciosItems = [
-  { title: "Precios 1", path: "/precios1" },
-  { title: "Precios 2", path: "/precios2" },
-  { title: "Precios 3", path: "/precios3" },
+  { title: "Precios 1", path: "/precios/1" },
+  { title: "Precios 2", path: "/precios/2" },
+  { title: "Precios 3", path: "/precios/3" },
 ];
 
 export function Sidebar() {

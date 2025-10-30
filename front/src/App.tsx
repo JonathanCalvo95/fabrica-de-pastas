@@ -25,10 +25,10 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route
-            path="/precio:n"
-            element={<Navigate to="/precios/:n" replace />}
-          />
+
+          {/* Precios*/}
+          <Route path="/" element={<Navigate to="/precios/1" replace />} />
+          <Route path="/precios/:n" element={<Precios />} />
 
           {/* Rutas protegidas */}
           <Route element={<ProtectedRoute />}>
@@ -43,6 +43,7 @@ export default function App() {
             </Route>
           </Route>
 
+          {/* errores */}
           <Route path="/error">
             <Route path="401" element={<Unauthorized />} />
             <Route path="403" element={<Forbidden />} />
