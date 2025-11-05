@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { getUserRole } from "../utils/auth";
+import { MENU_ITEMS } from "../config/navigation";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   Drawer,
@@ -14,28 +16,16 @@ import {
   Avatar,
   Collapse,
 } from "@mui/material";
-import {
-  Dashboard as DashboardIcon,
-  Inventory as InventoryIcon,
-  ShoppingCart,
-  Warehouse,
-  AccountBalance,
-  AttachMoney,
-  Menu as MenuIcon,
-  Logout as LogoutIcon,
-  ExpandLess,
-  ExpandMore,
-  People,
-} from "@mui/icons-material";
+import { AttachMoney, Menu as MenuIcon, Logout as LogoutIcon, ExpandLess, ExpandMore } from "@mui/icons-material";
 
-const menuItems = [
-  { title: "Dashboard", icon: DashboardIcon, path: "/" },
-  { title: "Caja", icon: AccountBalance, path: "/caja" },
-  { title: "Ventas", icon: ShoppingCart, path: "/ventas" },
-  { title: "Stock", icon: Warehouse, path: "/stock" },
-  { title: "Productos", icon: InventoryIcon, path: "/productos" },
-  { title: "Usuarios", icon: People, path: "/usuarios" },
-];
+type MenuItem = {
+  title: string;
+  icon: any;
+  path: string;
+  allowedRoles?: string[];
+};
+
+const menuItems = MENU_ITEMS as MenuItem[];
 
 const preciosItems = [
   { title: "Precios 1", path: "/precios/1" },
@@ -61,6 +51,8 @@ export function Sidebar() {
       setPreciosOpen(true);
     }
   }, [location.pathname]);
+
+  const role = getUserRole();
 
   const handleLogout = () => {
     localStorage.removeItem("authToken");
@@ -95,19 +87,19 @@ export function Sidebar() {
       >
         {!collapsed && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Box
-              sx={{
-                width: 32,
-                height: 32,
-                borderRadius: 2,
-                background: "linear-gradient(135deg, #D4A574, #E8915F)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <InventoryIcon sx={{ color: "white", fontSize: 20 }} />
-            </Box>
+              <Box
+                sx={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 2,
+                  background: "linear-gradient(135deg, #D4A574, #E8915F)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <AttachMoney sx={{ color: "white", fontSize: 20 }} />
+              </Box>
             <Typography variant="subtitle1" fontWeight="bold">
               Fabrica de Pastas
             </Typography>
@@ -119,38 +111,43 @@ export function Sidebar() {
       </Box>
 
       <List sx={{ px: 1, py: 2, flexGrow: 1 }}>
-        {menuItems.map((item) => (
-          <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
-            <ListItemButton
-              component={NavLink}
-              to={item.path}
-              sx={{
-                borderRadius: 2,
-                "&.active": {
-                  bgcolor: "primary.main",
-                  color: "primary.contrastText",
-                  "& .MuiListItemIcon-root": {
-                    color: "primary.contrastText",
-                  },
-                  fontWeight: 600,
-                },
-                "&:hover": {
-                  bgcolor: "action.hover",
-                },
-              }}
-            >
-              <ListItemIcon
+        {menuItems
+          .filter((item) => {
+            if (!item.allowedRoles) return true;
+            return item.allowedRoles.includes(role ?? "");
+          })
+          .map((item) => (
+            <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
+              <ListItemButton
+                component={NavLink}
+                to={item.path}
                 sx={{
-                  minWidth: collapsed ? "unset" : 40,
-                  color: "text.secondary",
+                  borderRadius: 2,
+                  "&.active": {
+                    bgcolor: "primary.main",
+                    color: "primary.contrastText",
+                    "& .MuiListItemIcon-root": {
+                      color: "primary.contrastText",
+                    },
+                    fontWeight: 600,
+                  },
+                  "&:hover": {
+                    bgcolor: "action.hover",
+                  },
                 }}
               >
-                <item.icon />
-              </ListItemIcon>
-              {!collapsed && <ListItemText primary={item.title} />}
-            </ListItemButton>
-          </ListItem>
-        ))}
+                <ListItemIcon
+                  sx={{
+                    minWidth: collapsed ? "unset" : 40,
+                    color: "text.secondary",
+                  }}
+                >
+                  <item.icon />
+                </ListItemIcon>
+                {!collapsed && <ListItemText primary={item.title} />}
+              </ListItemButton>
+            </ListItem>
+          ))}
 
         <ListItem disablePadding sx={{ mb: 0.5 }}>
           <ListItemButton

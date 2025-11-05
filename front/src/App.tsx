@@ -1,9 +1,10 @@
 import { ThemeProvider } from "@mui/material/styles";
 import { CssBaseline } from "@mui/material";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { theme } from "./theme/Theme";
 
 import ProtectedRoute from "./components/ProtectedRoute";
+import RoleRedirect from "./components/RoleRedirect";
 import AppLayout from "./AppLayout";
 
 import Dashboard from "./pages/Dashboard";
@@ -28,20 +29,91 @@ export default function App() {
           <Route path="/login" element={<Login />} />
 
           {/* Precios*/}
-          <Route path="/" element={<Navigate to="/precios/1" replace />} />
+          <Route path="/" element={<RoleRedirect />} />
           <Route path="/precios/:n" element={<Precios />} />
 
           {/* Rutas protegidas */}
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="productos" element={<Productos />} />
-              <Route path="ventas" element={<Ventas />} />
-              <Route path="ventas/crear" element={<CrearVenta />} />
-              <Route path="ventas/:id" element={<DetalleVenta />} />
-              <Route path="stock" element={<Stock />} />
-              <Route path="caja" element={<Caja />} />
-              <Route path="usuarios" element={<Usuarios />} />
+              <Route
+                path="dashboard"
+                element={<ProtectedRoute allowedRoles={["Administrador"]} />}
+              >
+                <Route index element={<Dashboard />} />
+              </Route>
+
+              <Route
+                path="productos"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={["Administrador", "Productor"]}
+                  />
+                }
+              >
+                <Route index element={<Productos />} />
+              </Route>
+
+              <Route
+                path="ventas"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={["Administrador", "Vendedor"]}
+                  />
+                }
+              >
+                <Route index element={<Ventas />} />
+              </Route>
+
+              <Route
+                path="ventas/crear"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={["Administrador", "Vendedor"]}
+                  />
+                }
+              >
+                <Route index element={<CrearVenta />} />
+              </Route>
+
+              <Route
+                path="ventas/:id"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={["Administrador", "Vendedor"]}
+                  />
+                }
+              >
+                <Route index element={<DetalleVenta />} />
+              </Route>
+
+              <Route
+                path="stock"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={["Administrador", "Productor"]}
+                  />
+                }
+              >
+                <Route index element={<Stock />} />
+              </Route>
+
+              <Route
+                path="caja"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={["Administrador", "Vendedor"]}
+                  />
+                }
+              >
+                <Route index element={<Caja />} />
+              </Route>
+
+              <Route
+                path="usuarios"
+                element={<ProtectedRoute allowedRoles={["Administrador"]} />}
+              >
+                <Route index element={<Usuarios />} />
+              </Route>
             </Route>
           </Route>
 

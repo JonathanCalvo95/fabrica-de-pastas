@@ -64,6 +64,25 @@ const fmtFecha = (iso: string) => {
 export default function Ventas() {
   const navigate = useNavigate();
 
+  // role guard: only Administrador and Vendedor can access this page
+  useEffect(() => {
+    const role = (() => {
+      try {
+        const t = localStorage.getItem('authToken');
+        if (!t) return null;
+        const payload = JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        return (
+          payload?.role || payload?.roles?.[0] || payload?.rol || null
+        );
+      } catch {
+        return null;
+      }
+    })();
+    if (!role) return;
+    const lc = String(role).toLowerCase();
+    if (lc !== 'administrador' && lc !== 'vendedor') navigate('/error/403');
+  }, [navigate]);
+
   const [ventas, setVentas] = useState<VentaListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
