@@ -70,7 +70,7 @@ export default function Dashboard() {
       },
       {
         title: "Ticket Promedio",
-        value: `$${data.stats.ticketPromedio.toLocaleString("es-AR")}`, // 👈 formateado
+        value: `$${data.stats.ticketPromedio.toLocaleString("es-AR")}`,
         change:
           typeof data.stats.ticketPromedioChangePct === "number"
             ? `${data.stats.ticketPromedioChangePct >= 0 ? "+" : ""}${data.stats.ticketPromedioChangePct.toFixed(1)}%`
@@ -119,7 +119,6 @@ export default function Dashboard() {
           mb: 4,
         }}
       >
-        {/* 3 cards */}
         {stats.map((stat) => (
           <Card
             key={
@@ -179,11 +178,13 @@ export default function Dashboard() {
         ))}
       </Box>
 
+      {/* ===== Sección de Ventas y Alerta de Stock ===== */}
       <Box
         sx={{
           display: "grid",
           gridTemplateColumns: { xs: "1fr", lg: "repeat(2, 1fr)" },
           gap: 3,
+          alignItems: "start",
         }}
       >
         <Card>
@@ -232,7 +233,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card sx={{ alignSelf: "start" }}>
           <CardContent>
             <Typography variant="h3" sx={{ mb: 3 }}>
               Alerta de Stock Bajo

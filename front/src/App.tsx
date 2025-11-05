@@ -15,6 +15,7 @@ import Stock from "./pages/Stock";
 import Caja from "./pages/Caja";
 import Precios from "./pages/Precios";
 import Login from "./pages/Login";
+import Usuarios from "./pages/Usuarios";
 
 import { NotFound, Unauthorized, Forbidden, ServerError } from "./errors";
 
@@ -40,6 +41,7 @@ export default function App() {
               <Route path="ventas/:id" element={<DetalleVenta />} />
               <Route path="stock" element={<Stock />} />
               <Route path="caja" element={<Caja />} />
+              <Route path="usuarios" element={<Usuarios />} />
             </Route>
           </Route>
 

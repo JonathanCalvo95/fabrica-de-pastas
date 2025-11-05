@@ -1,6 +1,6 @@
 using back.Entities;
 using back.Enums;
-using back.Domain; // <-- para CategoriaExtensions.Defaults()
+using back.Domain;
 using MongoDB.Driver;
 
 namespace back.Migrations;
@@ -63,10 +63,10 @@ public class M002_SeedProductos : IMigration
             (Categoria.Salsas, "Pesto", 4800, 8),
 
             // Tartas / Empanadas / Postres
-            (Categoria.Tartas, "De Verdura", 3400, 12),
-            (Categoria.Tartas, "De Jamón y Queso", 3500, 10),
-            (Categoria.Empanadas, "De Carne", 6900, 10),
-            (Categoria.Empanadas, "De Jamón y Queso", 6700, 10),
+            (Categoria.Tartas, "Verdura", 3400, 12),
+            (Categoria.Tartas, "Jamón y Queso", 3500, 10),
+            (Categoria.Empanadas, "Carne", 6900, 10),
+            (Categoria.Empanadas, "Jamón y Queso", 6700, 10),
             (Categoria.Postres, "Flan Casero", 2800, 12),
             (Categoria.Postres, "Mousse de chocolate", 3000, 10),
         };

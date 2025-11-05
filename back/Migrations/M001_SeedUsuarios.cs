@@ -23,13 +23,14 @@ public class M001_SeedUsuarios : IMigration
         {
             var filter = Builders<Usuario>.Filter.Eq(u => u.Username, user);
 
-            // Generar hash BCrypt
             var hash = BCrypt.Net.BCrypt.HashPassword(pass);
 
             var update = Builders<Usuario>.Update
                 .SetOnInsert(u => u.Username, user)
                 .Set(u => u.Password, hash)
-                .Set(u => u.Rol, rol);
+                .Set(u => u.Rol, rol)
+                .SetOnInsert(u => u.Activo, true)
+                .SetOnInsert(u => u.FechaCreacion, DateTime.UtcNow);
 
             await usuarios.UpdateOneAsync(filter, update, new UpdateOptions { IsUpsert = true }, ct);
         }

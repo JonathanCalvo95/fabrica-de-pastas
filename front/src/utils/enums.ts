@@ -63,3 +63,23 @@ export const ESTADO_VENTA_OPTIONS: {
 
 export const estadoVentaInfo = (v?: number) =>
   ESTADO_VENTA_OPTIONS.find((o) => o.value === v) ?? ESTADO_VENTA_OPTIONS[0];
+
+export const TIPO_ROL_OPTIONS: { value: number; label: string }[] = [
+  { value: 1, label: "Administrador" },
+  { value: 2, label: "Productor" },
+  { value: 3, label: "Vendedor" },
+];
+
+export const tipoRolLabel = (v?: number): string =>
+  TIPO_ROL_OPTIONS.find((r) => r.value === v)?.label ?? String(v ?? "");
+
+export const tipoRolColor = (v?: number): "error" | "warning" | "primary" => {
+  switch (v) {
+    case 1:
+      return "primary";
+    case 2:
+      return "primary";
+    default:
+      return "primary";
+  }
+};

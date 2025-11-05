@@ -4,7 +4,9 @@ namespace back.Repositories;
 
 public interface IUsuarioRepository
 {
-    Task<Usuario?> GetByUsernameAsync(string username);
-    Task AddAsync(Usuario user);
+    Task<IEnumerable<Usuario>> GetAllAsync();
     Task<Usuario?> GetByIdAsync(string id);
+    Task<Usuario?> GetByUsernameAsync(string username);
+    Task AddAsync(Usuario usuario);
+    Task UpdateAsync(Usuario usuario);
 }

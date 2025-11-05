@@ -25,6 +25,7 @@ import {
   Logout as LogoutIcon,
   ExpandLess,
   ExpandMore,
+  People,
 } from "@mui/icons-material";
 
 const menuItems = [
@@ -33,6 +34,7 @@ const menuItems = [
   { title: "Ventas", icon: ShoppingCart, path: "/ventas" },
   { title: "Stock", icon: Warehouse, path: "/stock" },
   { title: "Productos", icon: InventoryIcon, path: "/productos" },
+  { title: "Usuarios", icon: People, path: "/usuarios" },
 ];
 
 const preciosItems = [
@@ -50,9 +52,9 @@ export function Sidebar() {
   const drawerWidth = collapsed ? 70 : 240;
 
   useEffect(() => {
-    const email = localStorage.getItem("usuario");
-    if (email) {
-      setUsuario(email);
+    const usuario = localStorage.getItem("usuario");
+    if (usuario) {
+      setUsuario(usuario);
     }
 
     if (location.pathname.match(/^\/precios[1-6]$/)) {
