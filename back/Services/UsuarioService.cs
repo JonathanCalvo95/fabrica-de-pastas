@@ -16,7 +16,7 @@ public class UsuarioService(IUsuarioRepository repo, IConfiguration configuratio
     public async Task<Usuario?> AuthenticateAsync(string username, string password)
     {
         var usuario = await _repo.GetByUsernameAsync(username);
-        if (usuario == null || !BCrypt.Net.BCrypt.Verify(password, usuario.Password))
+        if (usuario == null || usuario.Activo == false || !BCrypt.Net.BCrypt.Verify(password, usuario.Password))
             return null;
         return usuario;
     }

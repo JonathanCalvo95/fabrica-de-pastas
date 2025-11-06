@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Box,
   Card,
@@ -43,8 +43,11 @@ export default function Stock() {
   const [openReduce, setOpenReduce] = useState(false);
 
   const [selectedItem, setSelectedItem] = useState<Producto | null>(null);
-  const [addAmount, setAddAmount] = useState(0);
-  const [reduceAmount, setReduceAmount] = useState(0);
+  const [addAmount, setAddAmount] = useState<number | "">("");
+  const [reduceAmount, setReduceAmount] = useState<number | "">("");
+
+  const addInputRef = useRef<HTMLInputElement>(null);
+  const reduceInputRef = useRef<HTMLInputElement>(null);
 
   // Cargar desde el backend
   useEffect(() => {
@@ -85,19 +88,28 @@ export default function Stock() {
   // Abrir diálogos
   const handleOpenAdd = (item: Producto) => {
     setSelectedItem(item);
-    setAddAmount(0);
+    setAddAmount("");
     setOpenAdd(true);
+
+    setTimeout(() => {
+      addInputRef.current?.focus();
+    }, 100);
   };
+
   const handleOpenReduce = (item: Producto) => {
     setSelectedItem(item);
-    setReduceAmount(0);
+    setReduceAmount("");
     setOpenReduce(true);
+
+    setTimeout(() => {
+      reduceInputRef.current?.focus();
+    }, 100);
   };
 
   // Acciones
   const handleAddStock = async () => {
-    if (!selectedItem) return;
-    const newStock = selectedItem.stock + addAmount;
+    if (!selectedItem || addAmount === "") return;
+    const newStock = selectedItem.stock + Number(addAmount);
     try {
       await updateStock(selectedItem.id, newStock);
       await reload();
@@ -108,8 +120,8 @@ export default function Stock() {
   };
 
   const handleReduceStock = async () => {
-    if (!selectedItem) return;
-    const qty = Math.max(0, reduceAmount);
+    if (!selectedItem || reduceAmount === "") return;
+    const qty = Math.max(0, Number(reduceAmount));
     const newStock = Math.max(0, selectedItem.stock - qty);
     try {
       await updateStock(selectedItem.id, newStock);
@@ -337,17 +349,22 @@ export default function Stock() {
             label="Cantidad a agregar"
             type="number"
             value={addAmount}
-            onChange={(e) => setAddAmount(Number(e.target.value))}
+            onChange={(e) => setAddAmount(e.target.value === "" ? "" : Number(e.target.value))}
             fullWidth
-            autoFocus
+            inputRef={addInputRef}
             sx={{ mt: 2 }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && addAmount !== "" && addAmount > 0) {
+                handleAddStock();
+              }
+            }}
           />
-          {addAmount > 0 && (
+          {Number(addAmount) > 0 && (
             <Typography variant="body2" color="primary" sx={{ mt: 2 }}>
-              Nuevo stock: {(selectedItem?.stock || 0) + addAmount}{" "}
+              Nuevo stock: {(selectedItem?.stock || 0) + Number(addAmount)}{" "}
               {pluralAuto(
                 medidaLabel(selectedItem?.medida),
-                (selectedItem?.stock || 0) + addAmount
+                (selectedItem?.stock || 0) + Number(addAmount)
               )}
             </Typography>
           )}
@@ -357,7 +374,7 @@ export default function Stock() {
           <Button
             variant="contained"
             onClick={handleAddStock}
-            disabled={addAmount <= 0}
+            disabled={addAmount === "" || addAmount <= 0}
           >
             Agregar
           </Button>
@@ -366,55 +383,60 @@ export default function Stock() {
 
       {/* Dialog Reducir Stock */}
       <Dialog
-        open={openReduce}
-        onClose={() => setOpenReduce(false)}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle>Reducir Stock</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {formatName(selectedItem?.categoria, selectedItem?.descripcion)}
-          </Typography>
-          <Typography variant="body2" sx={{ mb: 2 }}>
-            Stock actual: <strong>{selectedItem?.stock}</strong>
-          </Typography>
-          <TextField
-            label="Cantidad a descontar"
-            type="number"
-            value={reduceAmount}
-            onChange={(e) => setReduceAmount(Number(e.target.value))}
-            fullWidth
-            autoFocus
-            sx={{ mt: 2 }}
-            helperText={
-              reduceAmount > (selectedItem?.stock ?? 0)
-                ? "Se ajustará a 0 (no puede quedar negativo)"
-                : " "
-            }
-          />
-          {reduceAmount > 0 && (
-            <Typography variant="body2" color="warning.main" sx={{ mt: 2 }}>
-              Nuevo stock:{" "}
-              {Math.max(0, (selectedItem?.stock || 0) - reduceAmount)}{" "}
-              {pluralAuto(
-                medidaLabel(selectedItem?.medida),
-                Math.max(0, (selectedItem?.stock || 0) - reduceAmount)
-              )}
-            </Typography>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenReduce(false)}>Cancelar</Button>
-          <Button
-            variant="contained"
-            onClick={handleReduceStock}
-            disabled={reduceAmount <= 0}
-          >
-            Descontar
-          </Button>
-        </DialogActions>
-      </Dialog>
+  open={openReduce}
+  onClose={() => setOpenReduce(false)}
+  maxWidth="xs"
+  fullWidth
+>
+  <DialogTitle>Reducir Stock</DialogTitle>
+  <DialogContent>
+    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+      {formatName(selectedItem?.categoria, selectedItem?.descripcion)}
+    </Typography>
+    <Typography variant="body2" sx={{ mb: 2 }}>
+      Stock actual: <strong>{selectedItem?.stock}</strong>
+    </Typography>
+    <TextField
+      label="Cantidad a descontar"
+      type="number"
+      value={reduceAmount}
+      onChange={(e) => setReduceAmount(e.target.value === "" ? "" : Number(e.target.value))}
+      fullWidth
+      inputRef={reduceInputRef} // Asignar la referencia
+      sx={{ mt: 2 }}
+      helperText={
+        Number(reduceAmount) > (selectedItem?.stock ?? 0)
+          ? "Se ajustará a 0 (no puede quedar negativo)"
+          : " "
+      }
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && reduceAmount !== "" && reduceAmount > 0) {
+          handleReduceStock();
+        }
+      }}
+    />
+    {Number(reduceAmount) > 0 && (
+      <Typography variant="body2" color="warning.main" sx={{ mt: 2 }}>
+        Nuevo stock:{" "}
+        {Math.max(0, (selectedItem?.stock || 0) - Number(reduceAmount))}{" "}
+        {pluralAuto(
+          medidaLabel(selectedItem?.medida),
+          Math.max(0, (selectedItem?.stock || 0) - Number(reduceAmount))
+        )}
+      </Typography>
+    )}
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setOpenReduce(false)}>Cancelar</Button>
+    <Button
+      variant="contained"
+      onClick={handleReduceStock}
+      disabled={reduceAmount === "" || reduceAmount <= 0}
+    >
+      Descontar
+    </Button>
+  </DialogActions>
+</Dialog>
     </Box>
   );
 }

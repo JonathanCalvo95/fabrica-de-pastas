@@ -21,14 +21,14 @@ export type NavItem = {
   path: string;
   icon?: any;
   element?: any;
-  allowedRoles?: string[]; // undefined => visible to all
+  allowedRoles?: string[];
   index?: boolean;
 };
 
 export const NAV_ITEMS: NavItem[] = [
   { title: "Dashboard", path: "/dashboard", icon: DashboardIcon, element: Dashboard, allowedRoles: ["Administrador"] },
-  { title: "Caja", path: "/caja", icon: AccountBalance, element: Caja, allowedRoles: ["Administrador", "Vendedor"] },
   { title: "Ventas", path: "/ventas", icon: ShoppingCart, element: Ventas, allowedRoles: ["Administrador", "Vendedor"] },
+  { title: "Caja", path: "/caja", icon: AccountBalance, element: Caja, allowedRoles: ["Administrador", "Vendedor"] },
   { title: "Crear Venta", path: "/ventas/crear", element: CrearVenta, allowedRoles: ["Administrador", "Vendedor"] },
   { title: "Detalle Venta", path: "/ventas/:id", element: DetalleVenta, allowedRoles: ["Administrador", "Vendedor"] },
   { title: "Stock", path: "/stock", icon: Warehouse, element: Stock, allowedRoles: ["Administrador", "Productor"] },

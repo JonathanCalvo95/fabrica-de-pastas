@@ -3,8 +3,8 @@ import { Box, Typography, Paper } from "@mui/material";
 import { useNavigate, useParams, Navigate } from "react-router-dom";
 import { categoriaLabel } from "../utils/enums";
 import { get, type Producto } from "../api/productos";
+import { ArrowBack, CropFree } from "@mui/icons-material";
 
-/* ===== Config ===== */
 const REFRESH_MS = 45_000; // intervalo de actualización (ms)
 
 /* ===== Helpers ===== */
@@ -218,7 +218,7 @@ export default function Precios() {
   >([]);
   const navigate = useNavigate();
 
-  const lastSig = useRef<string>(""); // firma de último dataset
+  const lastSig = useRef<string>("");
   const aliveRef = useRef(true);
 
   const buildPages = useCallback((mapped: ReturnType<typeof mapDto>[]) => {
@@ -361,6 +361,37 @@ export default function Precios() {
         </Box>
       )}
 
+      {/* Botón volver al inicio */}
+      <Box
+        sx={{
+          position: "fixed",
+          bottom: 16,
+          left: 16,
+          zIndex: 50,
+        }}
+      >
+        <button
+          onClick={() => {
+            navigate("/");
+          }}
+          style={{
+            background: "#8e1a1a",
+            color: "#fff",
+            border: "none",
+            borderRadius: "50%",
+            width: "48px",
+            height: "48px",
+            fontSize: "22px",
+            fontWeight: "bold",
+            cursor: "pointer",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
+          }}
+          title="Volver al inicio"
+        >
+          <ArrowBack />
+        </button>
+      </Box>
+
       {/* Botón pantalla completa */}
       <Box
         sx={{
@@ -391,9 +422,9 @@ export default function Precios() {
             cursor: "pointer",
             boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
           }}
-          title="Pantalla completa (tecla F) — Refrescar (tecla R)"
+          title="Pantalla completa (tecla F)"
         >
-          ⛶
+          <CropFree />
         </button>
       </Box>
     </Box>

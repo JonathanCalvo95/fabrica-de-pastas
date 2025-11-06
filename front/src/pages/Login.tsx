@@ -41,7 +41,7 @@ export default function Login() {
       localStorage.setItem("usuario", usuario);
       navigate("/");
     } catch {
-      setLoginError("Usuario o contraseña inválidos.");
+      setLoginError("Usuario o contraseña inválidos o inactivo.");
     }
   };
 

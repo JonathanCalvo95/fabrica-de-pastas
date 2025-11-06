@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import {
   Box,
   Card,
@@ -68,6 +68,10 @@ export default function Caja() {
     return abierta.montoInicial + ventasEfectivo;
   }, [abierta, ventasEfectivo]);
 
+  // Referencias para los campos de entrada
+  const abrirInputRef = useRef<HTMLInputElement>(null);
+  const cerrarInputRef = useRef<HTMLInputElement>(null);
+
   async function cargar() {
     try {
       setCargando(true);
@@ -122,6 +126,16 @@ export default function Caja() {
     }
   }
 
+  const handleOpenAbrirDialog = () => {
+    setDlgAbrir(true);
+    setTimeout(() => abrirInputRef.current?.focus(), 100); // Colocar el cursor automáticamente
+  };
+
+  const handleOpenCerrarDialog = () => {
+    setDlgCerrar(true);
+    setTimeout(() => cerrarInputRef.current?.focus(), 100); // Colocar el cursor automáticamente
+  };
+
   return (
     <Box sx={{ p: 4 }}>
       <Box
@@ -145,7 +159,7 @@ export default function Caja() {
           <Button
             variant="contained"
             startIcon={<LockOpen />}
-            onClick={() => setDlgAbrir(true)}
+            onClick={handleOpenAbrirDialog}
           >
             Abrir Caja
           </Button>
@@ -154,7 +168,7 @@ export default function Caja() {
             variant="contained"
             color="error"
             startIcon={<Lock />}
-            onClick={() => setDlgCerrar(true)}
+            onClick={handleOpenCerrarDialog}
           >
             Cerrar Caja
           </Button>
@@ -357,9 +371,13 @@ export default function Caja() {
             type="number"
             value={montoInicial}
             onChange={(e) => setMontoInicial(e.target.value)}
-            InputProps={{
-              startAdornment: <Typography sx={{ mr: 1 }}>$</Typography>,
+            inputRef={abrirInputRef}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && montoInicial !== "" && parseFloat(montoInicial) > 0) {
+                onAbrir();
+              }
             }}
+            sx={{ mt: 2 }}
           />
         </DialogContent>
         <DialogActions>
@@ -419,8 +437,11 @@ export default function Caja() {
             type="number"
             value={montoReal}
             onChange={(e) => setMontoReal(e.target.value)}
-            InputProps={{
-              startAdornment: <Typography sx={{ mr: 1 }}>$</Typography>,
+            inputRef={cerrarInputRef} // Asignar la referencia
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && montoReal !== "" && parseFloat(montoReal) > 0) {
+                onCerrar();
+              }
             }}
             sx={{ mb: 2 }}
           />

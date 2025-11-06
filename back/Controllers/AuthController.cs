@@ -15,7 +15,7 @@ public class AuthController(UsuarioService usuarioService) : BaseApiController
     public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
     {
         Usuario? usuario = await usuarioService.AuthenticateAsync(request.Usuario, request.Clave);
-        if (usuario == null) return Unauthorized("Usuario o contraseña inválidos.");
+        if (usuario == null) return Unauthorized();
         string token = usuarioService.GenerateJwtToken(usuario);
         return Ok(new { token });
     }
