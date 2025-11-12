@@ -35,6 +35,7 @@ export type VentaDetail = {
     productoId: string;
     categoria: number;
     descripcion: string;
+    medida?: number;
     cantidad: number;
     precioUnitario: number;
     subtotal?: number;

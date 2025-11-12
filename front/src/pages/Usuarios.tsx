@@ -73,7 +73,7 @@ export default function Usuarios() {
         await refresh();
       } catch (e) {
         console.error(e);
-        notify("No se pudieron cargar los usuarios", "error");
+        notify("Error al cargar los usuarios", "error");
       } finally {
         setInitialLoading(false);
       }

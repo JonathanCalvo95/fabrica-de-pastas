@@ -155,7 +155,7 @@ export default function Productos() {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "flex-start",
-          mb: 4,
+          mb: 2,
         }}
       >
         <Box>

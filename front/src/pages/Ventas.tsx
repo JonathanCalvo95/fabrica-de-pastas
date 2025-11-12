@@ -68,19 +68,19 @@ export default function Ventas() {
   useEffect(() => {
     const role = (() => {
       try {
-        const t = localStorage.getItem('authToken');
+        const t = localStorage.getItem("authToken");
         if (!t) return null;
-        const payload = JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-        return (
-          payload?.role || payload?.roles?.[0] || payload?.rol || null
+        const payload = JSON.parse(
+          atob(t.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))
         );
+        return payload?.role || payload?.roles?.[0] || payload?.rol || null;
       } catch {
         return null;
       }
     })();
     if (!role) return;
     const lc = String(role).toLowerCase();
-    if (lc !== 'administrador' && lc !== 'vendedor') navigate('/error/403');
+    if (lc !== "administrador" && lc !== "vendedor") navigate("/error/403");
   }, [navigate]);
 
   const [ventas, setVentas] = useState<VentaListItem[]>([]);
@@ -170,7 +170,7 @@ export default function Ventas() {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "flex-start",
-          mb: 4,
+          mb: 1,
         }}
       >
         <Box>
@@ -193,25 +193,74 @@ export default function Ventas() {
       </Box>
 
       {/* Info de caja */}
-      {!loadingCaja && caja && (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          <Typography variant="body2">
-            <strong>Caja abierta:</strong> Sesión #{caja.id} — Apertura{" "}
-            {new Date(caja.apertura).toLocaleString("es-AR")}
-          </Typography>
-        </Alert>
-      )}
-      {!loadingCaja && !caja && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          <Typography variant="body2">
-            <strong>Atención:</strong> Debe abrir una caja en la sección de
-            Gestión de Caja para registrar nuevas ventas.
-          </Typography>
-        </Alert>
-      )}
+      <Box sx={{ mb: 2 }}>
+        {!loadingCaja && caja && (
+          <Alert severity="info">
+            <Typography variant="body2">
+              <strong>Caja abierta:</strong> Sesión #{caja.id} — Apertura{" "}
+              {new Date(caja.apertura).toLocaleString("es-AR")}
+            </Typography>
+          </Alert>
+        )}
+        {!loadingCaja && !caja && (
+          <Alert severity="warning">
+            <Typography variant="body2">
+              <strong>Atención:</strong> Debe abrir una caja en la sección de
+              Gestión de Caja para registrar nuevas ventas.
+            </Typography>
+          </Alert>
+        )}
+      </Box>
+
+      {/* Tarjetas resumen */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
+          gap: 3,
+          mb: 2,
+        }}
+      >
+        <Card>
+          <CardContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+              Total Hoy
+            </Typography>
+            <Typography variant="h3" color="primary">
+              {fmtMoney(resumen.totalHoy)}
+            </Typography>
+            <Typography variant="body2" color="success.main" sx={{ mt: 1 }}>
+              +{resumen.cantidadHoy} ventas
+            </Typography>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+              Promedio por Venta (Hoy)
+            </Typography>
+            <Typography variant="h3">{fmtMoney(resumen.promedio)}</Typography>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+              Ventas no confirmadas
+            </Typography>
+            <Typography variant="h3" color="warning.main">
+              {resumen.pendientes}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              {fmtMoney(resumen.pendientesMonto)} en proceso
+            </Typography>
+          </CardContent>
+        </Card>
+      </Box>
 
       {/* Tabla de ventas */}
-      <Card sx={{ mb: 4, overflow: "hidden" }}>
+      <Card sx={{ overflow: "hidden" }}>
         {loading ? (
           <Box sx={{ p: 6, display: "flex", justifyContent: "center" }}>
             <CircularProgress />
@@ -310,52 +359,6 @@ export default function Ventas() {
           </TableContainer>
         )}
       </Card>
-
-      {/* Tarjetas resumen */}
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
-          gap: 3,
-        }}
-      >
-        <Card>
-          <CardContent>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-              Total Hoy
-            </Typography>
-            <Typography variant="h3" color="primary">
-              {fmtMoney(resumen.totalHoy)}
-            </Typography>
-            <Typography variant="body2" color="success.main" sx={{ mt: 1 }}>
-              +{resumen.cantidadHoy} ventas
-            </Typography>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-              Promedio por Venta (Hoy)
-            </Typography>
-            <Typography variant="h3">{fmtMoney(resumen.promedio)}</Typography>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-              Ventas no confirmadas
-            </Typography>
-            <Typography variant="h3" color="warning.main">
-              {resumen.pendientes}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              {fmtMoney(resumen.pendientesMonto)} en proceso
-            </Typography>
-          </CardContent>
-        </Card>
-      </Box>
     </Box>
   );
 }

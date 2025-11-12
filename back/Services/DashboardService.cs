@@ -2,13 +2,15 @@ using back.Domain;
 using back.Dtos.Dashboard;
 using back.Entities;
 using back.Enums;
-using MongoDB.Driver;
+using System.ComponentModel;
+using System.Globalization;
 
 namespace back.Services;
 
 public class DashboardService(
     IProductoService productoService,
-    IVentaService ventaService) : IDashboardService
+    IVentaService ventaService,
+    ICajaService cajaService) : IDashboardService
 {
     public async Task<DashboardResponseDto> GetAsync()
     {
@@ -17,7 +19,7 @@ public class DashboardService(
         var startPrevMonth = startThisMonth.AddMonths(-1);
         var endPrevMonth = startThisMonth.AddTicks(-1);
 
-        // productos y stock
+        // ===== Productos y stock =====
         var productos = (await productoService.GetAllAsync(activos: true)).ToList();
         int productosActivos = productos.Count;
         int productosCreadosEsteMes = productos.Count(p => p.FechaCreacion >= startThisMonth);
@@ -28,7 +30,7 @@ public class DashboardService(
         double stockLitros = productos.Where(p => p.Categoria.Defaults().medida == Medida.Litro).Sum(p => p.Stock);
         double stockCajas = productos.Where(p => p.Categoria.Defaults().medida == Medida.Caja).Sum(p => p.Stock);
 
-        // ventas del mes actual y anterior
+        // ===== Ventas del mes actual y anterior =====
         var ventasMesActual = await ventaService.GetByDateRangeAsync(startThisMonth, now);
         var ventasMesAnterior = await ventaService.GetByDateRangeAsync(startPrevMonth, endPrevMonth);
 
@@ -42,7 +44,7 @@ public class DashboardService(
             ? null
             : Math.Round(((ventasDelMes - ventasMesAnt) / ventasMesAnt) * 100m, 1);
 
-        // stock bajo
+        // ===== Stock bajo =====
         var lowStock = productos
             .Select(p =>
             {
@@ -60,7 +62,7 @@ public class DashboardService(
             })
             .ToList();
 
-        // ventas recientes
+        // ===== Ventas recientes (items) =====
         var ultimas = await ventaService.GetLastAsync(10);
         var items = ultimas
             .OrderByDescending(v => v.Fecha)
@@ -88,7 +90,7 @@ public class DashboardService(
             };
         }).ToList();
 
-        // ticket promedio
+        // ===== Ticket promedio =====
         int ordenesMesActual = ventasMesActual.Count;
         int ordenesMesAnterior = ventasMesAnterior.Count;
         decimal ticketPromActual = ordenesMesActual == 0 ? 0m : Math.Round(ventasDelMes / ordenesMesActual, 2);
@@ -98,6 +100,113 @@ public class DashboardService(
             ? (decimal?)null
             : Math.Round(((ticketPromActual - ticketPromAnterior) / ticketPromAnterior) * 100m, 1);
 
+        // ===== Monthly Evolution (últimos 6 meses) =====
+        var monthlyEvolution = new List<MonthlyEvolutionPointDto>();
+        for (int i = 5; i >= 0; i--)
+        {
+            var monthStart = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc).AddMonths(-i);
+            var monthEnd = monthStart.AddMonths(1).AddTicks(-1);
+            var ventasMes = await ventaService.GetByDateRangeAsync(monthStart, monthEnd);
+            var totalMes = Math.Round(TotalVentas(ventasMes), 2);
+            var diasMes = DateTime.DaysInMonth(monthStart.Year, monthStart.Month);
+            monthlyEvolution.Add(new MonthlyEvolutionPointDto
+            {
+                Label = monthStart.ToString("MMM", new CultureInfo("es-AR")),
+                Ventas = totalMes,
+                PromedioDiario = diasMes == 0 ? 0 : Math.Round(totalMes / diasMes, 2)
+            });
+        }
+
+    // ===== Ventas por día de la semana (últimos 7 días) =====
+    var start7 = now.AddDays(-7);
+    var ventas7 = await ventaService.GetByDateRangeAsync(start7, now);
+
+        var weekdayTotals = Enumerable.Range(0, 7).Select(_ => 0m).ToArray(); // 0=Sunday
+    foreach (var v in ventas7)
+        {
+            var importeVenta = ImporteVenta(v);
+            var dow = (int)v.Fecha.DayOfWeek;
+            weekdayTotals[dow] += importeVenta;
+        }
+
+        // Orden LUN..DOM => 1..6,0
+        var dayOrder = new[] { 1, 2, 3, 4, 5, 6, 0 };
+        var dayNames = new[] { "Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb" };
+        var salesByWeekday = dayOrder.Select(i => new SalesByWeekdayDto
+        {
+            Label = dayNames[i],
+            Ventas = Math.Round(weekdayTotals[i], 2)
+        }).ToList();
+
+        // ===== Métodos de pago (agrupado, usando enum MetodoPago) =====
+    var payments = ventas7
+            .GroupBy(v => v.MetodoPago) // si fuera nullable: GroupBy(v => v.MetodoPago)
+            .Select(g => new
+            {
+                Metodo = g.Key,         // MetodoPago
+                Importe = g.Sum(ImporteVenta)
+            })
+            .OrderByDescending(x => x.Importe)
+            .ToList();
+
+        var paymentMethods = payments.Select(x => new PaymentMethodDto
+        {
+            Metodo = GetEnumDescription(x.Metodo), // “Efectivo”, “Mercado Pago”, “Transferencia”
+            Importe = Math.Round(x.Importe, 2)
+        }).ToList();
+
+        var productoIngresos = new Dictionary<string, (string CategoriaDesc, string Descripcion, decimal Cantidad, decimal Ingresos)>();
+        foreach (var v in ventasMesActual)
+        {
+            foreach (var it in v.Items)
+            {
+                var prodMeta = productos.FirstOrDefault(p => p.Id == it.ProductoId);
+                if (prodMeta == null) continue;
+                var key = prodMeta.Id;
+                var ingresoItem = it.PrecioUnitario * (decimal)it.Cantidad;
+                if (!productoIngresos.ContainsKey(key))
+                    productoIngresos[key] = (prodMeta.Categoria.ToString(), prodMeta.Descripcion, (decimal)it.Cantidad, ingresoItem);
+                else
+                {
+                    var curr = productoIngresos[key];
+                    productoIngresos[key] = (curr.CategoriaDesc, curr.Descripcion, curr.Cantidad + (decimal)it.Cantidad, curr.Ingresos + ingresoItem);
+                }
+            }
+        }
+
+        var topProducts = productoIngresos
+            .Select(kv => new TopProductDto
+            {
+                Categoria = kv.Value.CategoriaDesc,
+                Descripcion = kv.Value.Descripcion,
+                Cantidad = kv.Value.Cantidad,
+                Ingresos = Math.Round(kv.Value.Ingresos, 2),
+                MargenPct = null // Placeholder si luego se calcula margen.
+            })
+            .OrderByDescending(p => p.Ingresos)
+            .Take(5)
+            .ToList();
+
+        // ===== Historial de cierres de caja (últimas 10 cajas) =====
+        var cajasHist = await cajaService.GetHistoryAsync(10);
+        var cashClosures = cajasHist.Select(c =>
+        {
+            var cierreMonto = c.MontoReal ?? c.MontoCalculado ?? c.MontoInicial;
+            var diferencia = (c.MontoReal.HasValue && c.MontoCalculado.HasValue)
+                ? c.MontoReal.Value - c.MontoCalculado.Value
+                : 0m;
+            var status = c.Estado == EstadoCaja.Cerrada && Math.Abs(diferencia) < 0.01m ? "ok" : "diff";
+            return new CashClosureDto
+            {
+                Fecha = c.Cierre ?? c.Apertura,
+                Apertura = c.MontoInicial,
+                Cierre = cierreMonto,
+                Diferencia = Math.Round(diferencia, 2),
+                Estado = status
+            };
+        }).ToList();
+
+        // ===== Stats + Response =====
         var stats = new DashboardStatsDto
         {
             VentasDelMes = ventasDelMes,
@@ -112,6 +221,30 @@ public class DashboardService(
             TicketPromedioChangePct = ticketChangePct
         };
 
-        return new DashboardResponseDto(stats, recent, lowStock);
+        var response = new DashboardResponseDto(stats, recent, lowStock)
+        {
+            MonthlyEvolution = monthlyEvolution,
+            SalesByWeekday = salesByWeekday,
+            PaymentMethods = paymentMethods,
+            TopProducts = topProducts,
+            CashClosures = cashClosures
+        };
+
+        return response;
+    }
+
+    // ===== Helpers =====
+    private static decimal ImporteVenta(Venta v) =>
+        v.Items.Sum(it => it.PrecioUnitario * (decimal)it.Cantidad);
+
+    private static string GetEnumDescription(Enum value)
+    {
+        var fi = value.GetType().GetField(value.ToString());
+        if (fi == null) return value.ToString();
+
+        var attr = (DescriptionAttribute?)
+            Attribute.GetCustomAttribute(fi, typeof(DescriptionAttribute));
+
+        return attr?.Description ?? value.ToString();
     }
 }

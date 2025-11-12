@@ -19,30 +19,46 @@ public class M003_SeedCajasVentas : IMigration
         var productos = await colProd.Find(p => p.Activo).ToListAsync(ct);
         if (productos.Count == 0) return;
 
-        var baseDay = DateTime.UtcNow.Date;
+        var baseDay = DateTime.UtcNow.Date; // hoy (UTC)
+    // Solo últimos 6 meses (aprox 180 días) hasta ayer
+    var startRange = baseDay.AddMonths(-6);
         var rand = new Random(101);
-        var days = 30;
+    var totalDays = (int)(baseDay - startRange).TotalDays; // hasta ayer (excluye hoy)
 
-        for (int d = days; d >= 1; d--)
+        // Pre-cargamos días ya seed para evitar consultas repetidas
+        Console.WriteLine("[M003] Iniciando migración: seed últimos 6 meses...");
+        var seededAperturas = await colCajas.Find(_ => true)
+            .Project(c => c.Apertura)
+            .ToListAsync(ct);
+        var seededSet = new HashSet<DateTime>(seededAperturas.Select(d => d.Date));
+        Console.WriteLine($"[M003] Días a evaluar: {totalDays} | Días ya seed: {seededSet.Count}");
+
+        var cajasToInsert = new List<Caja>();
+        var ventasToInsert = new List<Venta>();
+        var productoStockDelta = new Dictionary<string, double>();
+
+        // Generación in-memory (más rápida) de cajas y ventas faltantes
+        int generatedDays = 0;
+        for (int offset = totalDays; offset >= 1; offset--)
         {
-            var day = baseDay.AddDays(-d);
-            var exists = await colCajas.Find(c => c.Apertura >= day && c.Apertura < day.AddDays(1)).AnyAsync(ct);
-            if (exists) continue;
+            var day = baseDay.AddDays(-offset).Date;
+            if (seededSet.Contains(day)) continue;
 
             var apertura = day.AddHours(9);
             var cierre = day.AddHours(20);
-
             var caja = new Caja
             {
+                Id = ObjectId.GenerateNewId().ToString(), // asegurar Id antes de usar en ventas
                 Apertura = apertura,
                 MontoInicial = 0,
                 Estado = EstadoCaja.Abierta,
                 UsuarioId = ObjectId.GenerateNewId().ToString(),
                 Observaciones = "Seed (simulada)"
             };
-            await colCajas.InsertOneAsync(caja, cancellationToken: ct);
+            cajasToInsert.Add(caja);
 
-            int ventasCount = rand.Next(6, 18);
+            bool isSunday = apertura.DayOfWeek == DayOfWeek.Sunday;
+            int ventasCount = isSunday ? rand.Next(3, 10) : rand.Next(6, 18);
             decimal totalDia = 0m;
 
             for (int i = 0; i < ventasCount; i++)
@@ -54,32 +70,40 @@ public class M003_SeedCajasVentas : IMigration
                 for (int k = 0; k < itemsCount; k++)
                 {
                     var p = productos[rand.Next(productos.Count)];
-
-                    double cant = p.Categoria switch
+                    double cant;
+                    var (medida, _, _) = p.Categoria.Defaults();
+                    if (medida == Medida.Unidad || medida == Medida.Caja)
                     {
-                        Categoria.Salsas => Math.Round(rand.NextDouble() * 1.2 + 0.3, 2), // litro
-                        Categoria.Tartas or Categoria.Postres => 1,
-                        Categoria.Empanadas => 1, // docena
-                        _ => Math.Round(rand.NextDouble() * 1.5 + 0.4, 2) // kg aprox.
-                    };
-
-                    items.Add(new VentaItem
+                        // Solo enteros para Unidad/Caja
+                        cant = p.Categoria switch
+                        {
+                            Categoria.Tartas => 1,
+                            Categoria.Postres => 1,
+                            Categoria.Varios => 1,
+                            Categoria.Canelones => rand.Next(1, 4), // 1-3 unidades
+                            Categoria.Pizzas => rand.Next(1, 3), // 1-2 pizzas
+                            Categoria.Empanadas => rand.Next(1, 5), // docenas 1-4
+                            Categoria.Ravioles => rand.Next(1, 5), // cajas 1-4
+                            _ => 1
+                        };
+                    }
+                    else if (p.Categoria == Categoria.Salsas)
                     {
-                        ProductoId = p.Id,
-                        Cantidad = cant,
-                        PrecioUnitario = p.Precio
-                    });
-
-                    // stock local simulado
-                    p.Stock = Math.Max(0, p.Stock - cant);
+                        cant = Math.Round(rand.NextDouble() * 1.2 + 0.3, 2); // litros con decimales
+                    }
+                    else
+                    {
+                        cant = Math.Round(rand.NextDouble() * 1.2 + 0.3, 2); // otras medidas con decimales
+                    }
+                    items.Add(new VentaItem { ProductoId = p.Id, Cantidad = cant, PrecioUnitario = p.Precio });
+                    if (!productoStockDelta.ContainsKey(p.Id)) productoStockDelta[p.Id] = 0;
+                    productoStockDelta[p.Id] += cant;
                 }
 
                 var total = items.Sum(x => x.Monto);
                 totalDia += total;
-
-                var metodo = (MetodoPago)rand.Next(1, 4); // 1..3
-
-                var venta = new Venta
+                var metodo = (MetodoPago)rand.Next(1, 4);
+                ventasToInsert.Add(new Venta
                 {
                     Fecha = hora,
                     Items = items,
@@ -88,47 +112,71 @@ public class M003_SeedCajasVentas : IMigration
                     UsuarioId = ObjectId.GenerateNewId().ToString(),
                     CajaId = caja.Id,
                     Estado = EstadoVenta.Confirmada
-                };
-
-                await colVentas.InsertOneAsync(venta, cancellationToken: ct);
+                });
             }
 
-            // cerrar caja
-            var delta = (decimal)((rand.NextDouble() - 0.5) * 0.02); // +-1%
-            var updateCaja = Builders<Caja>.Update
-                .Set(c => c.Cierre, cierre)
-                .Set(c => c.MontoCalculado, Math.Round(totalDia, 2))
-                .Set(c => c.MontoReal, Math.Round(totalDia * (1 + delta), 2))
-                .Set(c => c.Estado, EstadoCaja.Cerrada);
+            // Actualización final de caja se hará luego con BulkWrite
+            var delta = (decimal)((rand.NextDouble() - 0.5) * 0.02);
+            caja.Cierre = cierre;
+            caja.MontoCalculado = Math.Round(totalDia, 2);
+            caja.MontoReal = Math.Round(totalDia * (1 + delta), 2);
+            caja.Estado = EstadoCaja.Cerrada;
 
-            await colCajas.UpdateOneAsync(c => c.Id == caja.Id, updateCaja, cancellationToken: ct);
-
-            foreach (var p in productos)
+            generatedDays++;
+            if (generatedDays % 30 == 0)
             {
-                await colProd.UpdateOneAsync(
-                    x => x.Id == p.Id,
-                    Builders<Producto>.Update
-                        .Set(x => x.Stock, p.Stock)
-                        .Set(x => x.FechaActualizacion, DateTime.UtcNow),
-                    cancellationToken: ct);
+                Console.WriteLine($"[M003] Días generados hasta ahora: {generatedDays}");
             }
         }
 
+        // Bulk insert para cajas y ventas (reduce round trips)
+        Console.WriteLine($"[M003] Insertando cajas: {cajasToInsert.Count} | ventas: {ventasToInsert.Count}");
+        if (cajasToInsert.Count > 0)
+            await colCajas.InsertManyAsync(cajasToInsert, cancellationToken: ct);
+        if (ventasToInsert.Count > 0)
+            await colVentas.InsertManyAsync(ventasToInsert, cancellationToken: ct);
+
+        // Aplicar deltas de stock acumulados en lote
+        if (productoStockDelta.Count > 0)
+        {
+            var bulkProd = new List<WriteModel<Producto>>();
+            foreach (var p in productos)
+            {
+                if (productoStockDelta.TryGetValue(p.Id, out var used))
+                {
+                    var newStock = Math.Max(0, p.Stock - used);
+                    bulkProd.Add(new UpdateManyModel<Producto>(
+                        Builders<Producto>.Filter.Eq(x => x.Id, p.Id),
+                        Builders<Producto>.Update
+                            .Set(x => x.Stock, newStock)
+                            .Set(x => x.FechaActualizacion, DateTime.UtcNow)
+                    ));
+                }
+            }
+            if (bulkProd.Count > 0)
+                await colProd.BulkWriteAsync(bulkProd, cancellationToken: ct);
+        }
+
+        // Ajuste final de stock mínimo usando Bulk para productos por debajo del umbral
         var all = await colProd.Find(_ => true).ToListAsync(ct);
+        var bulkAdjust = new List<WriteModel<Producto>>();
         foreach (var p in all)
         {
             var (_, min, _) = p.Categoria.Defaults();
             if (min > 0 && p.Stock < min)
             {
-                var margin = Math.Round(min * 0.20, 2); // 20% arriba del min
-                await colProd.UpdateOneAsync(
-                    x => x.Id == p.Id,
+                var margin = Math.Round(min * 0.20, 2);
+                bulkAdjust.Add(new UpdateOneModel<Producto>(
+                    Builders<Producto>.Filter.Eq(x => x.Id, p.Id),
                     Builders<Producto>.Update
                         .Set(x => x.Stock, min + margin)
-                        .Set(x => x.FechaActualizacion, DateTime.UtcNow),
-                    cancellationToken: ct
-                );
+                        .Set(x => x.FechaActualizacion, DateTime.UtcNow)
+                ));
             }
         }
+        if (bulkAdjust.Count > 0)
+            await colProd.BulkWriteAsync(bulkAdjust, cancellationToken: ct);
+
+        Console.WriteLine("[M003] Migración completada.");
     }
 }

@@ -21,7 +21,7 @@ import {
 } from "@mui/material";
 import { ArrowBack } from "@mui/icons-material";
 import { getVenta, type VentaDetail } from "../api/ventas";
-import { metodoPagoLabel, estadoVentaInfo } from "../utils/enums";
+import { metodoPagoLabel, estadoVentaInfo, medidaLabel } from "../utils/enums";
 import { formatName } from "../utils/formatters";
 import { pluralAuto } from "../utils/plural";
 
@@ -86,8 +86,9 @@ export default function DetalleVenta() {
     () => fmtFechaHora(venta?.fecha),
     [venta?.fecha]
   );
+  // Cantidad de productos distintos en la venta
   const totalItems = useMemo(
-    () => (venta?.items ?? []).reduce((sum, it) => sum + (it.cantidad ?? 0), 0),
+    () => new Set((venta?.items ?? []).map((it) => it.productoId)).size,
     [venta?.items]
   );
 
@@ -147,10 +148,13 @@ export default function DetalleVenta() {
                   <TableHead>
                     <TableRow sx={{ bgcolor: "action.hover" }}>
                       <TableCell>
-                        <strong>Producto</strong>
+                        <strong>Descripcion</strong>
                       </TableCell>
-                      <TableCell align="center">
+                      <TableCell align="right">
                         <strong>Cantidad</strong>
+                      </TableCell>
+                      <TableCell align="left">
+                        <strong>Medida</strong>
                       </TableCell>
                       <TableCell align="right">
                         <strong>Precio Unit.</strong>
@@ -166,7 +170,10 @@ export default function DetalleVenta() {
                         <TableCell>
                           {formatName(it.categoria, it.descripcion)}
                         </TableCell>
-                        <TableCell align="center">{it.cantidad}</TableCell>
+                        <TableCell align="right">{it.cantidad}</TableCell>
+                        <TableCell align="left">
+                          {pluralAuto(medidaLabel(it.medida), it.cantidad)}
+                        </TableCell>
                         <TableCell align="right">
                           {money(it.precioUnitario)}
                         </TableCell>
@@ -178,7 +185,7 @@ export default function DetalleVenta() {
                       </TableRow>
                     ))}
                     <TableRow>
-                      <TableCell colSpan={3} align="right">
+                      <TableCell colSpan={4} align="right">
                         <Typography variant="h6">Total:</Typography>
                       </TableCell>
                       <TableCell align="right">
@@ -259,10 +266,10 @@ export default function DetalleVenta() {
                   color="text.secondary"
                   sx={{ mb: 0.5 }}
                 >
-                  Items Totales
+                  Cantidad
                 </Typography>
                 <Typography variant="body1" fontWeight={600}>
-                  {`${totalItems} ${pluralAuto("unidad", totalItems)}`}
+                  {`${totalItems} ${pluralAuto("producto", totalItems)}`}
                 </Typography>
               </Box>
 
@@ -297,13 +304,6 @@ export default function DetalleVenta() {
               >
                 <Typography color="text.secondary">Subtotal:</Typography>
                 <Typography fontWeight={600}>{money(venta.total)}</Typography>
-              </Box>
-
-              <Box
-                sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}
-              >
-                <Typography color="text.secondary">Impuestos:</Typography>
-                <Typography fontWeight={600}>{money(0)}</Typography>
               </Box>
 
               <Divider sx={{ my: 2 }} />

@@ -5,10 +5,32 @@ declare module "@mui/material/styles" {
     customGradients: {
       pasta: string;
     };
+    chartColors: {
+      ventasLine: string;
+      promedioLine: string;
+      barVentas: string;
+      pagoEfectivo: string;
+      pagoTransferencia: string;
+      pagoDebito: string;
+      pagoCredito: string;
+      pagoMercadoPago: string;
+      pagoFallback: string;
+    };
   }
   interface ThemeOptions {
     customGradients?: {
       pasta?: string;
+    };
+    chartColors?: {
+      ventasLine?: string;
+      promedioLine?: string;
+      barVentas?: string;
+      pagoEfectivo?: string;
+      pagoTransferencia?: string;
+      pagoDebito?: string;
+      pagoCredito?: string;
+      pagoMercadoPago?: string;
+      pagoFallback?: string;
     };
   }
   interface Palette {
@@ -54,7 +76,6 @@ export const theme = createTheme({
       // opcional para chips/badges
       main: "#EADBC8",
     },
-    divider: "#E0C097",
   },
   typography: {
     fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
@@ -93,4 +114,20 @@ export const theme = createTheme({
   customGradients: {
     pasta: "linear-gradient(135deg, #FAF8F5 0%, #D4A574 100%)",
   },
+  chartColors: {
+    ventasLine: "#D4A574",
+    promedioLine: "#10B981",
+    barVentas: "#D4A574",
+    pagoEfectivo: "#10B981",
+    pagoTransferencia: "#D4A574",
+    pagoMercadoPago: "#0288D1",
+    pagoFallback: "#8B7355",
+  },
 });
+
+export const layout = {
+  TOPBAR_HEIGHT: 56,
+  DRAWER_WIDTH: 240,
+  DRAWER_WIDTH_COLLAPSED: 70,
+  BORDER: "1px solid",
+} as const;

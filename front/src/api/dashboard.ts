@@ -32,10 +32,48 @@ export interface LowStockDto {
   stockMinimo: string;
 }
 
+// Nuevos tipos
+export interface MonthlyEvolutionPointDto {
+  label: string;
+  ventas: number;
+  promedioDiario: number;
+}
+
+export interface SalesByWeekdayDto {
+  label: string;
+  ventas: number;
+}
+
+export interface PaymentMethodDto {
+  metodo: string;
+  importe: number;
+}
+
+export interface TopProductDto {
+  categoria: string;
+  descripcion: string;
+  cantidad: number;
+  ingresos: number;
+  margenPct?: number | null;
+}
+
+export interface CashClosureDto {
+  fecha: string;
+  apertura: number;
+  cierre: number;
+  diferencia: number;
+  estado: string;
+}
+
 export interface DashboardResponse {
   stats: DashboardStatsDto;
   recentSales: RecentSaleDto[];
   lowStock: LowStockDto[];
+  monthlyEvolution: MonthlyEvolutionPointDto[];
+  salesByWeekday: SalesByWeekdayDto[];
+  paymentMethods: PaymentMethodDto[];
+  topProducts: TopProductDto[];
+  cashClosures: CashClosureDto[];
 }
 
 export const getDashboard = async (): Promise<DashboardResponse> => {

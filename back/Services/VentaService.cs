@@ -2,6 +2,7 @@ using back.Dtos.Ventas;
 using back.Entities;
 using back.Enums;
 using back.Repositories;
+using back.Domain;
 
 namespace back.Services;
 
@@ -36,6 +37,11 @@ public class VentaService(
 
             if (it.Cantidad <= 0)
                 throw new ArgumentException("Cantidad inválida.");
+
+            // Validar cantidades enteras para medidas Unidad / Caja
+            var (medida, _, _) = prod.Categoria.Defaults();
+            if ((medida == Medida.Unidad || medida == Medida.Caja) && Math.Abs(it.Cantidad - Math.Round(it.Cantidad)) > 1e-6)
+                throw new ArgumentException("Cantidad debe ser un número entero para productos de medida Unidad o Caja.");
 
             // Descuenta stock y obtiene precio vigente
             var r = await productosRepo.DecrementStockIfEnoughAsync(it.ProductoId, it.Cantidad);
@@ -121,6 +127,7 @@ public class VentaService(
                 {
                     ProductoId = p.ProductoId,
                     Categoria = prod.Categoria,
+                    Medida = prod.Categoria.Defaults().medida,
                     Descripcion = prod.Descripcion,
                     Cantidad = p.Cantidad,
                     PrecioUnitario = p.PrecioUnitario,
