@@ -30,6 +30,8 @@ import { get as getProductos, type Producto } from "../api/productos";
 import { crearVenta, type MetodoPago } from "../api/ventas";
 import { getCajaActual, type CajaDto } from "../api/caja";
 import { formatName } from "../utils/formatters";
+import { medidaLabel } from "../utils/enums";
+import { pluralAuto } from "../utils/plural";
 
 interface ProductoVenta {
   id: string;
@@ -37,6 +39,7 @@ interface ProductoVenta {
   precio: number;
   cantidad: number;
   subtotal: number;
+  medida?: number;
 }
 
 const money = (n: number) =>
@@ -103,7 +106,7 @@ export default function CrearVenta() {
   const handleAgregarProducto = () => {
     if (!productoSeleccionado || cantidad <= 0) return;
 
-    const { id, categoria, descripcion, precio } = productoSeleccionado;
+    const { id, categoria, descripcion, precio, medida } = productoSeleccionado;
     const existe = productosVenta.find((p) => p.id === id);
 
     if (existe) {
@@ -124,6 +127,7 @@ export default function CrearVenta() {
           precio,
           cantidad,
           subtotal: precio * cantidad,
+          medida,
         },
       ]);
     }
@@ -136,7 +140,7 @@ export default function CrearVenta() {
     setProductosVenta((prev) => prev.filter((p) => p.id !== id));
 
   const handleActualizarCantidad = (id: string, nuevaCantidad: number) => {
-    if (nuevaCantidad <= 0) return handleEliminarProducto(id);
+    if (nuevaCantidad <= 0.0) return handleEliminarProducto(id);
     setProductosVenta((prev) =>
       prev.map((p) =>
         p.id === id
@@ -215,34 +219,34 @@ export default function CrearVenta() {
 
   return (
     <Box sx={{ p: 4 }}>
-      <Box sx={{ display: "flex", alignItems: "center", mb: 4, gap: 2 }}>
+      <Box sx={{ display: "flex", alignItems: "center", mb: 2, gap: 2 }}>
         <IconButton onClick={() => navigate("/ventas")}>
           <ArrowBack />
         </IconButton>
         <Box>
-          <Typography variant="h1" sx={{ mb: 0.5 }}>
+          <Typography variant="h1" sx={{ mb: 1 }}>
             Nueva Venta
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Registrar una nueva transacción
+            Registrar una nueva venta
           </Typography>
         </Box>
       </Box>
 
       {!cajaAbierta && (
-        <Alert severity="error" sx={{ mb: 4 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
           <Typography variant="body2">
             <strong>Atención:</strong> Debe abrir una caja antes de registrar
-            ventas en efectivo
+            ventas
           </Typography>
         </Alert>
       )}
 
       {cajaAbierta && (
-        <Alert severity="info" sx={{ mb: 4 }}>
+        <Alert severity="info" sx={{ mb: 2 }}>
           <Typography variant="body2">
-            <strong>Sesión de Caja Activa:</strong> #{caja?.id} — Las ventas en
-            efectivo se registrarán en esta sesión
+            <strong>Sesión de Caja Activa:</strong> #{caja?.id} — Las ventas se
+            registrarán en esta sesión.
           </Typography>
         </Alert>
       )}
@@ -300,13 +304,16 @@ export default function CrearVenta() {
                 <TableHead>
                   <TableRow sx={{ bgcolor: "action.hover" }}>
                     <TableCell>
-                      <strong>Producto</strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong>Precio Unit.</strong>
+                      <strong>Descripción</strong>
                     </TableCell>
                     <TableCell align="center">
                       <strong>Cantidad</strong>
+                    </TableCell>
+                    <TableCell align="left">
+                      <strong>Medida</strong>
+                    </TableCell>
+                    <TableCell align="right">
+                      <strong>Precio Unit.</strong>
                     </TableCell>
                     <TableCell align="right">
                       <strong>Subtotal</strong>
@@ -319,8 +326,8 @@ export default function CrearVenta() {
                 <TableBody>
                   {productosVenta.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} align="center">
-                        <Typography color="text.secondary" sx={{ py: 4 }}>
+                      <TableCell colSpan={6} align="center">
+                        <Typography color="text.secondary" sx={{ py: 2 }}>
                           No hay productos agregados
                         </Typography>
                       </TableCell>
@@ -329,7 +336,6 @@ export default function CrearVenta() {
                     productosVenta.map((p) => (
                       <TableRow key={p.id}>
                         <TableCell>{p.nombre}</TableCell>
-                        <TableCell align="right">{money(p.precio)}</TableCell>
                         <TableCell align="center">
                           <TextField
                             type="number"
@@ -341,10 +347,13 @@ export default function CrearVenta() {
                               )
                             }
                             sx={{ width: 80 }}
-                            inputProps={{ min: 0 }}
                             size="small"
                           />
                         </TableCell>
+                        <TableCell align="left">
+                          {pluralAuto(medidaLabel(p.medida), p.cantidad)}
+                        </TableCell>
+                        <TableCell align="right">{money(p.precio)}</TableCell>
                         <TableCell align="right">
                           <Typography fontWeight={600}>
                             {money(p.subtotal)}
@@ -408,9 +417,9 @@ export default function CrearVenta() {
                     mb: 1,
                   }}
                 >
-                  <Typography color="text.secondary">Items:</Typography>
+                  <Typography color="text.secondary">Productos:</Typography>
                   <Typography fontWeight={500}>
-                    {productosVenta.reduce((sum, p) => sum + p.cantidad, 0)}
+                    {productosVenta.length}
                   </Typography>
                 </Box>
                 <Box sx={{ display: "flex", justifyContent: "space-between" }}>

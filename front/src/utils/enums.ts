@@ -83,3 +83,18 @@ export const tipoRolColor = (v?: number): "error" | "warning" | "primary" => {
       return "primary";
   }
 };
+
+// === Estados de Pedido ===
+export const ESTADO_PEDIDO_OPTIONS: {
+  value: 1 | 2 | 3 | 4;
+  label: string;
+  color: "info" | "success" | "warning" | "error";
+}[] = [
+  { value: 1, label: "Pendiente", color: "info" },
+  { value: 2, label: "Confirmado", color: "warning" },
+  { value: 3, label: "Entregado", color: "success" },
+  { value: 4, label: "Cancelado", color: "error" },
+];
+
+export const estadoPedidoInfo = (v?: number) =>
+  ESTADO_PEDIDO_OPTIONS.find((o) => o.value === v) ?? ESTADO_PEDIDO_OPTIONS[0];

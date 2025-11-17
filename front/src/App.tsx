@@ -12,6 +12,9 @@ import Productos from "./pages/Productos";
 import Ventas from "./pages/Ventas";
 import CrearVenta from "./pages/CrearVenta";
 import DetalleVenta from "./pages/DetalleVenta";
+import Pedidos from "./pages/Pedidos";
+import CrearPedido from "./pages/CrearPedido";
+import DetallePedido from "./pages/DetallePedido";
 import Stock from "./pages/Stock";
 import Caja from "./pages/Caja";
 import Precios from "./pages/Precios";
@@ -65,6 +68,17 @@ export default function App() {
               </Route>
 
               <Route
+                path="pedidos"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={["Administrador", "Vendedor"]}
+                  />
+                }
+              >
+                <Route index element={<Pedidos />} />
+              </Route>
+
+              <Route
                 path="ventas/crear"
                 element={
                   <ProtectedRoute
@@ -76,6 +90,17 @@ export default function App() {
               </Route>
 
               <Route
+                path="pedidos/crear"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={["Administrador", "Vendedor"]}
+                  />
+                }
+              >
+                <Route index element={<CrearPedido />} />
+              </Route>
+
+              <Route
                 path="ventas/:id"
                 element={
                   <ProtectedRoute
@@ -84,6 +109,17 @@ export default function App() {
                 }
               >
                 <Route index element={<DetalleVenta />} />
+              </Route>
+
+              <Route
+                path="pedidos/:id"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={["Administrador", "Vendedor"]}
+                  />
+                }
+              >
+                <Route index element={<DetallePedido />} />
               </Route>
 
               <Route

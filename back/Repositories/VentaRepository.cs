@@ -40,4 +40,11 @@ public class VentaRepository(MongoDbContext ctx) : IVentaRepository
                          .SortBy(x => x.Fecha)
                          .ToListAsync();
     }
+
+    public Task UpdateEstadoAsync(string id, EstadoVenta estado)
+    {
+        var f = Builders<Venta>.Filter.Eq(x => x.Id, id);
+        var u = Builders<Venta>.Update.Set(x => x.Estado, estado);
+        return _col.UpdateOneAsync(f, u);
+    }
 }

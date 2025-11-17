@@ -65,7 +65,7 @@ public class M003_SeedCajasVentas : IMigration
             {
                 var hora = apertura.AddMinutes(rand.Next(0, (int)(cierre - apertura).TotalMinutes));
                 int itemsCount = rand.Next(1, 5);
-                var items = new List<VentaItem>();
+                var itemsMap = new Dictionary<string, VentaItem>();
 
                 for (int k = 0; k < itemsCount; k++)
                 {
@@ -95,11 +95,20 @@ public class M003_SeedCajasVentas : IMigration
                     {
                         cant = Math.Round(rand.NextDouble() * 1.2 + 0.3, 2); // otras medidas con decimales
                     }
-                    items.Add(new VentaItem { ProductoId = p.Id, Cantidad = cant, PrecioUnitario = p.Precio });
+                    if (itemsMap.TryGetValue(p.Id, out var existing))
+                    {
+                        existing.Cantidad += cant;
+                    }
+                    else
+                    {
+                        itemsMap[p.Id] = new VentaItem { ProductoId = p.Id, Cantidad = cant, PrecioUnitario = p.Precio };
+                    }
+
                     if (!productoStockDelta.ContainsKey(p.Id)) productoStockDelta[p.Id] = 0;
                     productoStockDelta[p.Id] += cant;
                 }
 
+                var items = itemsMap.Values.ToList();
                 var total = items.Sum(x => x.Monto);
                 totalDia += total;
                 var metodo = (MetodoPago)rand.Next(1, 4);

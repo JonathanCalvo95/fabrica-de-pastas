@@ -58,3 +58,8 @@ export const crearVenta = async (body: VentaCreate) => {
   const { data } = await api.post(`/ventas`, body);
   return data;
 };
+
+export const anularVenta = async (id: string) => {
+  const { data } = await api.post<VentaDetail>(`/ventas/${id}/anular`, {});
+  return data;
+};

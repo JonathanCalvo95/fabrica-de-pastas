@@ -17,6 +17,7 @@ builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
 builder.Services.AddScoped<IProductoRepository, ProductoRepository>();
 builder.Services.AddScoped<ICajaRepository, CajaRepository>();
 builder.Services.AddScoped<IVentaRepository, VentaRepository>();
+builder.Services.AddScoped<IPedidoRepository, PedidoRepository>();
 
 // Servicios
 builder.Services.AddScoped<UsuarioService>();
@@ -24,6 +25,7 @@ builder.Services.AddScoped<IProductoService, ProductoService>();
 builder.Services.AddScoped<ICajaService, CajaService>();
 builder.Services.AddScoped<IVentaService, VentaService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IPedidoService, PedidoService>();
 
 // AutoMapper
 builder.Services.AddAutoMapper(typeof(Program));
@@ -72,6 +74,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddSingleton<IMigration, M001_SeedUsuarios>();
 builder.Services.AddSingleton<IMigration, M002_SeedProductos>();
 builder.Services.AddSingleton<IMigration, M003_SeedCajasVentas>();
+builder.Services.AddSingleton<IMigration, M004_SeedPedidos>();
 builder.Services.AddSingleton(sp =>
 {
     var ctx = sp.GetRequiredService<MongoDbContext>();

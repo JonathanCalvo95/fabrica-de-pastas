@@ -20,4 +20,5 @@ public class MongoDbContext
     public IMongoCollection<Producto> Productos => _database.GetCollection<Producto>("Productos");
     public IMongoCollection<Caja> Cajas => _database.GetCollection<Caja>("Cajas");
     public IMongoCollection<Venta> Ventas => _database.GetCollection<Venta>("Ventas");
+    public IMongoCollection<Pedido> Pedidos => _database.GetCollection<Pedido>("Pedidos");
 }

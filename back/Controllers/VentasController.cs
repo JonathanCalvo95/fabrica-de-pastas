@@ -45,4 +45,25 @@ public class VentasController(IVentaService service) : BaseApiController
             return Conflict(ex.Message);
         }
     }
+
+    [HttpPost("{id}/anular")]
+    [Authorize(Roles = nameof(TipoRol.Administrador) + "," + nameof(TipoRol.Vendedor))]
+    [ProducesResponseType(typeof(VentaDetailDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Cancel(string id)
+    {
+        try
+        {
+            var result = await service.CancelAsync(id);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ex.Message);
+        }
+    }
 }

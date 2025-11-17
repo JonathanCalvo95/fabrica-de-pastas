@@ -20,7 +20,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { ArrowBack } from "@mui/icons-material";
-import { getVenta, type VentaDetail } from "../api/ventas";
+import { getVenta, anularVenta, type VentaDetail } from "../api/ventas";
 import { metodoPagoLabel, estadoVentaInfo, medidaLabel } from "../utils/enums";
 import { formatName } from "../utils/formatters";
 import { pluralAuto } from "../utils/plural";
@@ -44,6 +44,7 @@ export default function DetalleVenta() {
   const [venta, setVenta] = useState<VentaDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   // Cargar detalle desde el backend
   useEffect(() => {
@@ -111,6 +112,28 @@ export default function DetalleVenta() {
     );
   }
 
+  const handleAnular = async () => {
+    if (!id || !venta) return;
+    if (!confirm("¿Confirmás anular esta venta? Se repondrá el stock.")) return;
+    try {
+      setSaving(true);
+      const res = await anularVenta(id);
+      // Normalizar subtotales nuevamente
+      const items = (res.items ?? []).map((it: any) => ({
+        ...it,
+        subtotal:
+          typeof it.subtotal === "number"
+            ? it.subtotal
+            : Math.round((it.precioUnitario ?? 0) * (it.cantidad ?? 0) * 100) / 100,
+      }));
+      setVenta({ ...res, items });
+    } catch (e: any) {
+      alert(e?.response?.data ?? e?.message ?? "No se pudo anular la venta");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <Box sx={{ p: 4 }}>
       <Box
@@ -127,7 +150,7 @@ export default function DetalleVenta() {
           </IconButton>
           <Box>
             <Typography variant="h1" sx={{ mb: 0.5 }}>
-              Detalle de Venta #{venta.id.slice(-6)}
+              Detalle de Venta
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {fecha} a las {hora}
@@ -299,13 +322,6 @@ export default function DetalleVenta() {
                 Resumen
               </Typography>
 
-              <Box
-                sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}
-              >
-                <Typography color="text.secondary">Subtotal:</Typography>
-                <Typography fontWeight={600}>{money(venta.total)}</Typography>
-              </Box>
-
               <Divider sx={{ my: 2 }} />
 
               <Box sx={{ display: "flex", justifyContent: "space-between" }}>
@@ -314,6 +330,19 @@ export default function DetalleVenta() {
                   {money(venta.total)}
                 </Typography>
               </Box>
+
+              {venta.estado === 1 && (
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  color="error"
+                  onClick={handleAnular}
+                  disabled={saving}
+                  sx={{ mt: 2 }}
+                >
+                  Anular Venta
+                </Button>
+              )}
             </CardContent>
           </Card>
         </Grid>

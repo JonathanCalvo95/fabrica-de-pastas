@@ -72,4 +72,13 @@ public class ProductoRepository(MongoDbContext context) : IProductoRepository
         var list = await _productos.Find(p => set.Contains(p.Id)).ToListAsync();
         return list;
     }
+
+    public async Task IncrementStockAsync(string productoId, double cantidad)
+    {
+        var filter = Builders<Producto>.Filter.Where(p => p.Id == productoId && p.Activo);
+        var update = Builders<Producto>.Update
+            .Inc(p => p.Stock, cantidad)
+            .Set(p => p.FechaActualizacion, DateTime.UtcNow);
+        await _productos.UpdateOneAsync(filter, update);
+    }
 }

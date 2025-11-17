@@ -16,6 +16,10 @@ import {
   IconButton,
   Alert,
   CircularProgress,
+  FormControlLabel,
+  Switch,
+  Snackbar,
+  Alert as MuiAlert,
 } from "@mui/material";
 import { Add, Visibility } from "@mui/icons-material";
 
@@ -24,6 +28,7 @@ import {
   type VentaListItem,
   type MetodoPago,
   type EstadoVenta,
+  anularVenta,
 } from "../api/ventas";
 import { getCajaActual, type CajaDto } from "../api/caja";
 
@@ -86,6 +91,9 @@ export default function Ventas() {
   const [ventas, setVentas] = useState<VentaListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [onlyAnuladas, setOnlyAnuladas] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [snack, setSnack] = useState<{ open: boolean; message: string; severity: "success" | "error" | "info" | "warning" }>({ open: false, message: "", severity: "success" });
 
   const [caja, setCaja] = useState<CajaDto | null>(null);
   const [loadingCaja, setLoadingCaja] = useState(true);
@@ -162,6 +170,8 @@ export default function Ventas() {
   }, [ventas]);
 
   // ===== UI =====
+  const rows = useMemo(() => (onlyAnuladas ? ventas.filter(v => v.estado === 2) : ventas), [ventas, onlyAnuladas]);
+
   return (
     <Box sx={{ p: 4 }}>
       {/* Encabezado */}
@@ -181,15 +191,17 @@ export default function Ventas() {
             Registro de todas las transacciones
           </Typography>
         </Box>
-
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          disabled={loadingCaja || !caja} // deshabilitada si no hay caja abierta
-          onClick={() => navigate("/ventas/crear")}
-        >
-          Nueva Venta
-        </Button>
+        <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+          <FormControlLabel control={<Switch checked={onlyAnuladas} onChange={(_, v) => setOnlyAnuladas(v)} />} label="Solo anuladas" />
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            disabled={loadingCaja || !caja}
+            onClick={() => navigate("/ventas/crear")}
+          >
+            Nueva Venta
+          </Button>
+        </Box>
       </Box>
 
       {/* Info de caja */}
@@ -295,7 +307,7 @@ export default function Ventas() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {ventas.map((v) => {
+                {rows.map((v) => {
                   const { fecha, hora } = fmtFecha(v.fecha);
                   return (
                     <TableRow
@@ -335,11 +347,35 @@ export default function Ventas() {
                         >
                           <Visibility fontSize="small" />
                         </IconButton>
+                        {v.estado === 1 && (
+                          <Button
+                            size="small"
+                            color="error"
+                            variant="outlined"
+                            sx={{ ml: 1 }}
+                            disabled={cancellingId === v.id}
+                            onClick={async () => {
+                              if (!confirm("¿Confirmás anular esta venta? Se repondrá el stock.")) return;
+                              try {
+                                setCancellingId(v.id);
+                                await anularVenta(v.id);
+                                setVentas(prev => prev.map(x => x.id === v.id ? { ...x, estado: 2 as EstadoVenta } : x));
+                                setSnack({ open: true, message: "Venta anulada y stock repuesto", severity: "success" });
+                              } catch (e: any) {
+                                setSnack({ open: true, message: e?.response?.data ?? e?.message ?? "No se pudo anular la venta", severity: "error" });
+                              } finally {
+                                setCancellingId(null);
+                              }
+                            }}
+                          >
+                            Anular
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   );
                 })}
-                {!ventas.length && (
+                {!rows.length && (
                   <TableRow>
                     <TableCell colSpan={7}>
                       <Box
@@ -359,6 +395,22 @@ export default function Ventas() {
           </TableContainer>
         )}
       </Card>
+
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={3000}
+        onClose={() => setSnack((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <MuiAlert
+          onClose={() => setSnack((s) => ({ ...s, open: false }))}
+          severity={snack.severity}
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          {snack.message}
+        </MuiAlert>
+      </Snackbar>
     </Box>
   );
 }

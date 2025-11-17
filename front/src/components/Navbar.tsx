@@ -180,7 +180,7 @@ export const Navbar = ({ onHeightChange }: NavbarProps) => {
             >
               <EggAlt sx={{ color: "primary.main", fontSize: 20 }} />
             </Box>
-            <Typography variant="subtitle1" fontWeight="bold">
+            <Typography variant="h6" fontWeight="bold" color="">
               La Yema de Oro
             </Typography>
           </Box>
@@ -216,7 +216,7 @@ export const Navbar = ({ onHeightChange }: NavbarProps) => {
             sx={{ color: "#2C1810" }}
           >
             <Badge badgeContent={lowStock.length} color="error">
-              <NotificationsIcon sx={{ color: "#2C1810" }} />
+              <NotificationsIcon sx={{ color: "white" }} />
             </Badge>
           </IconButton>
 

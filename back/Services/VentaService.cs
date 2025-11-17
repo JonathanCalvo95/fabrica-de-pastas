@@ -24,13 +24,19 @@ public class VentaService(
         var caja = await cajaRepo.GetOpenAsync();
         var cajaId = caja?.Id;
 
+        // Normalizar/validar: no permitir productos repetidos; agrupar y sumar cantidades
+        var groupedItems = dto.Items
+            .GroupBy(i => i.ProductoId)
+            .Select(g => new VentaCreateItemDto { ProductoId = g.Key, Cantidad = g.Sum(x => x.Cantidad) })
+            .ToList();
+
         // Info básica de productos
-        var productoIds = dto.Items.Select(p => p.ProductoId).ToArray();
+        var productoIds = groupedItems.Select(p => p.ProductoId).ToArray();
         var productos = await productosRepo.GetInfoAsync(productoIds);
 
         var items = new List<VentaItem>();
 
-        foreach (var it in dto.Items)
+        foreach (var it in groupedItems)
         {
             if (!productos.ToDictionary(p => p.Id).TryGetValue(it.ProductoId, out var prod))
                 throw new ArgumentException($"Producto {it.ProductoId} no existe.");
@@ -106,6 +112,32 @@ public class VentaService(
     {
         estados ??= [EstadoVenta.Confirmada, EstadoVenta.Anulada, EstadoVenta.Devuelta];
         return await ventasRepo.GetByDateRangeAsync(fromUtc, toUtc, estados);
+    }
+
+    public async Task<VentaDetailDto> CancelAsync(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+            throw new ArgumentException("Id inválido", nameof(id));
+
+        var v = await ventasRepo.GetByIdAsync(id) ?? throw new ArgumentException("Venta no encontrada");
+        if (v.Estado == EstadoVenta.Anulada)
+            return await GetByIdAsync(id) ?? throw new InvalidOperationException("Estado no disponible");
+
+        // Solo permitir anular confirmadas o devueltas? Permitimos confirmadas y devueltas
+        if (v.Estado != EstadoVenta.Confirmada && v.Estado != EstadoVenta.Devuelta)
+            throw new InvalidOperationException("La venta no puede ser anulada en su estado actual.");
+
+        // Reponer stock por cada item
+        foreach (var it in v.Items)
+        {
+            await productosRepo.IncrementStockAsync(it.ProductoId, it.Cantidad);
+        }
+
+        await ventasRepo.UpdateEstadoAsync(id, EstadoVenta.Anulada);
+
+        var productos = await productosRepo.GetInfoAsync(v.Items.Select(i => i.ProductoId).ToArray());
+        var updated = await ventasRepo.GetByIdAsync(id) ?? v;
+        return ToDetailDto(updated, productos);
     }
 
     private static VentaDetailDto ToDetailDto(

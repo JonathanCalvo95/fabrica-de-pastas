@@ -10,4 +10,5 @@ public interface IVentaService
     Task<VentaDetailDto?> GetByIdAsync(string id);
     Task<List<VentaListItemDto>> GetLastAsync(int take = 50);
     Task<List<Venta>> GetByDateRangeAsync(DateTime fromUtc, DateTime toUtc, EstadoVenta[]? estados = null);
+    Task<VentaDetailDto> CancelAsync(string id);
 }
