@@ -16,21 +16,35 @@ import {
   IconButton,
   Alert,
   CircularProgress,
-  FormControlLabel,
-  Switch,
   Snackbar,
   Alert as MuiAlert,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  TablePagination,
 } from "@mui/material";
-import { Add, Visibility } from "@mui/icons-material";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs, { Dayjs } from "dayjs";
+import "dayjs/locale/es";
+import { Add, Visibility, PictureAsPdf } from "@mui/icons-material";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 import {
   getVentas,
+  getVenta,
   type VentaListItem,
   type MetodoPago,
   type EstadoVenta,
   anularVenta,
 } from "../api/ventas";
 import { getCajaActual, type CajaDto } from "../api/caja";
+import { metodoPagoLabel, estadoVentaInfo, medidaLabel } from "../utils/enums";
+import { formatName } from "../utils/formatters";
+import { pluralAuto } from "../utils/plural";
 
 // ===== Helpers de UI =====
 const pagoChip = (p: MetodoPago) => {
@@ -43,9 +57,9 @@ const pagoChip = (p: MetodoPago) => {
 };
 
 const estadoChip = (e: EstadoVenta) => {
-  if (e === 1) return <Chip label="Completada" color="success" size="small" />;
+  if (e === 1) return <Chip label="Realizada" color="success" size="small" />;
   if (e === 2) return <Chip label="Anulada" color="error" size="small" />;
-  return <Chip label="Devuelta" color="warning" size="small" />;
+  return <Chip label="Desconocido" color="default" size="small" />;
 };
 
 const fmtMoney = (n: number) =>
@@ -91,9 +105,18 @@ export default function Ventas() {
   const [ventas, setVentas] = useState<VentaListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [onlyAnuladas, setOnlyAnuladas] = useState(false);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [snack, setSnack] = useState<{ open: boolean; message: string; severity: "success" | "error" | "info" | "warning" }>({ open: false, message: "", severity: "success" });
+
+  // Filtros
+  const [fechaDesde, setFechaDesde] = useState<Dayjs | null>(null);
+  const [fechaHasta, setFechaHasta] = useState<Dayjs | null>(null);
+  const [estadoFiltro, setEstadoFiltro] = useState<EstadoVenta | "">("");
+  const [metodoPagoFiltro, setMetodoPagoFiltro] = useState<MetodoPago | "">("");
+
+  // Paginación
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const [caja, setCaja] = useState<CajaDto | null>(null);
   const [loadingCaja, setLoadingCaja] = useState(true);
@@ -169,39 +192,153 @@ export default function Ventas() {
     return { totalHoy, cantidadHoy, promedio, pendientes, pendientesMonto };
   }, [ventas]);
 
-  // ===== UI =====
-  const rows = useMemo(() => (onlyAnuladas ? ventas.filter(v => v.estado === 2) : ventas), [ventas, onlyAnuladas]);
+  // Filtrar ventas
+  const rows = useMemo(() => {
+    let filtered = [...ventas];
+
+    // Filtro por fecha
+    if (fechaDesde) {
+      const desde = fechaDesde.startOf('day');
+      filtered = filtered.filter(v => dayjs(v.fecha).isAfter(desde) || dayjs(v.fecha).isSame(desde, 'day'));
+    }
+    if (fechaHasta) {
+      const hasta = fechaHasta.endOf('day');
+      filtered = filtered.filter(v => dayjs(v.fecha).isBefore(hasta) || dayjs(v.fecha).isSame(hasta, 'day'));
+    }
+
+    // Filtro por estado
+    if (estadoFiltro !== "") {
+      filtered = filtered.filter(v => v.estado === estadoFiltro);
+    }
+
+    // Filtro por método de pago
+    if (metodoPagoFiltro !== "") {
+      filtered = filtered.filter(v => v.metodoPago === metodoPagoFiltro);
+    }
+
+    return filtered;
+  }, [ventas, fechaDesde, fechaHasta, estadoFiltro, metodoPagoFiltro]);
+
+  // Resetear página cuando cambien los filtros
+  useEffect(() => {
+    setPage(0);
+  }, [fechaDesde, fechaHasta, estadoFiltro, metodoPagoFiltro]);
+
+  // Función para descargar PDF de una venta
+  const handleDescargarPDF = async (ventaId: string) => {
+    try {
+      const venta = await getVenta(ventaId);
+      
+      const fmtFechaHora = (iso?: string) => {
+        if (!iso) return { f: "-", h: "-" };
+        const d = new Date(iso);
+        return {
+          f: d.toLocaleDateString("es-AR"),
+          h: d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }),
+        };
+      };
+      
+      const { f: fecha, h: hora } = fmtFechaHora(venta.fecha);
+      
+      // Normalizar items con subtotal
+      const items = (venta.items ?? []).map((it: any) => ({
+        ...it,
+        subtotal:
+          typeof it.subtotal === "number"
+            ? it.subtotal
+            : Math.round((it.precioUnitario ?? 0) * (it.cantidad ?? 0) * 100) / 100,
+      }));
+
+      const doc = new jsPDF();
+      
+      // Cargar y agregar logo
+      try {
+        const img = new Image();
+        img.src = '/logo.png';
+        await new Promise((resolve) => {
+          img.onload = resolve;
+          img.onerror = resolve; // Continue even if logo fails
+        });
+        if (img.complete && img.naturalWidth > 0) {
+          doc.addImage(img, 'PNG', 90, 5, 30, 30);
+        }
+      } catch (e) {
+        // Continue without logo if it fails
+      }
+      
+      // Título
+      doc.setFontSize(18);
+      doc.text("Fábrica de Pastas", 105, 42, { align: "center" });
+      doc.setFontSize(12);
+      doc.text("La Yema de Oro", 105, 49, { align: "center" });
+      doc.setFontSize(14);
+      doc.text("Detalle de Venta", 105, 57, { align: "center" });
+      
+      // Información general
+      doc.setFontSize(10);
+      doc.text(`Fecha: ${fecha} - ${hora}`, 14, 67);
+      doc.text(`Método de Pago: ${metodoPagoLabel(venta.metodoPago)}`, 14, 74);
+      doc.text(`Estado: ${estadoVentaInfo(venta.estado).label}`, 14, 81);
+      
+      // Tabla de productos
+      const tableData = items.map((item: any) => [
+        formatName(item.categoria, item.descripcion),
+        item.cantidad.toString(),
+        pluralAuto(medidaLabel(item.medida), item.cantidad),
+        fmtMoney(item.precioUnitario),
+        fmtMoney(item.subtotal || 0),
+      ]);
+      
+      autoTable(doc, {
+        startY: 87,
+        head: [['Producto', 'Cantidad', 'Medida', 'Precio Unit.', 'Subtotal']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [212, 165, 116] },
+        foot: [['', '', '', 'Total:', fmtMoney(venta.total)]],
+        footStyles: { fillColor: [255, 255, 255], fontStyle: 'bold', textColor: [0, 0, 0] },
+      });
+      
+      // Descargar
+      doc.save(`venta-${ventaId}.pdf`);
+    } catch (e: any) {
+      setSnack({ open: true, message: e?.response?.data ?? e?.message ?? "No se pudo generar el PDF", severity: "error" });
+    }
+  };
 
   return (
-    <Box sx={{ p: 4 }}>
+    <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="es">
+      <Box sx={{ p: 4 }}>
       {/* Encabezado */}
       <Box
         sx={{
+          mb: 3,
           display: "flex",
+          flexDirection: { xs: "column", md: "row" },
           justifyContent: "space-between",
-          alignItems: "flex-start",
-          mb: 1,
+          alignItems: { xs: "flex-start", md: "center" },
+          gap: 2,
         }}
       >
         <Box>
-          <Typography variant="h1" sx={{ mb: 1 }}>
+          <Typography
+            variant="h1"
+            sx={{ mb: 0.5, letterSpacing: -0.3, fontWeight: 700 }}
+          >
             Ventas
           </Typography>
-          <Typography variant="body1" color="text.secondary">
+          <Typography variant="body2" color="text.secondary">
             Registro de todas las transacciones
           </Typography>
         </Box>
-        <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-          <FormControlLabel control={<Switch checked={onlyAnuladas} onChange={(_, v) => setOnlyAnuladas(v)} />} label="Solo anuladas" />
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            disabled={loadingCaja || !caja}
-            onClick={() => navigate("/ventas/crear")}
-          >
-            Nueva Venta
-          </Button>
-        </Box>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          disabled={loadingCaja || !caja}
+          onClick={() => navigate("/ventas/crear")}
+        >
+          Nueva Venta
+        </Button>
       </Box>
 
       {/* Info de caja */}
@@ -209,7 +346,7 @@ export default function Ventas() {
         {!loadingCaja && caja && (
           <Alert severity="info">
             <Typography variant="body2">
-              <strong>Caja abierta:</strong> Sesión #{caja.id} — Apertura{" "}
+              <strong>Caja abierta</strong> — Apertura{" "}
               {new Date(caja.apertura).toLocaleString("es-AR")}
             </Typography>
           </Alert>
@@ -230,7 +367,7 @@ export default function Ventas() {
           display: "grid",
           gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
           gap: 3,
-          mb: 2,
+          mb: 3,
         }}
       >
         <Card>
@@ -271,6 +408,76 @@ export default function Ventas() {
         </Card>
       </Box>
 
+      {/* Filtros */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" sx={{ mb: 2 }}>Filtros</Typography>
+          <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", alignItems: "flex-start" }}>
+            <DatePicker
+              label="Fecha Desde"
+              value={fechaDesde}
+              onChange={(newValue) => setFechaDesde(newValue)}
+              format="DD/MM/YYYY"
+              slotProps={{
+                textField: {
+                  sx: { minWidth: 180 },
+                },
+              }}
+            />
+            <DatePicker
+              label="Fecha Hasta"
+              value={fechaHasta}
+              onChange={(newValue) => setFechaHasta(newValue)}
+              format="DD/MM/YYYY"
+              slotProps={{
+                textField: {
+                  sx: { minWidth: 180 },
+                },
+              }}
+            />
+            <FormControl sx={{ minWidth: 150 }}>
+              <InputLabel>Estado</InputLabel>
+              <Select
+                value={estadoFiltro}
+                label="Estado"
+                onChange={(e) => setEstadoFiltro(e.target.value as EstadoVenta | "")}
+              >
+                <MenuItem value="">Todos</MenuItem>
+                <MenuItem value={1}>Realizada</MenuItem>
+                <MenuItem value={2}>Anulada</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl sx={{ minWidth: 150 }}>
+              <InputLabel>Método de Pago</InputLabel>
+              <Select
+                value={metodoPagoFiltro}
+                label="Método de Pago"
+                onChange={(e) => setMetodoPagoFiltro(e.target.value as MetodoPago | "")}
+              >
+                <MenuItem value="">Todos</MenuItem>
+                <MenuItem value={1}>Efectivo</MenuItem>
+                <MenuItem value={2}>Mercado Pago</MenuItem>
+                <MenuItem value={3}>Transferencia</MenuItem>
+              </Select>
+            </FormControl>
+            {(fechaDesde || fechaHasta || estadoFiltro !== "" || metodoPagoFiltro !== "") && (
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  setFechaDesde(null);
+                  setFechaHasta(null);
+                  setEstadoFiltro("");
+                  setMetodoPagoFiltro("");
+                }}
+                sx={{ mt: 1 }}
+              >
+                Limpiar Filtros
+              </Button>
+            )}
+          </Box>
+        </CardContent>
+      </Card>
+
       {/* Tabla de ventas */}
       <Card sx={{ overflow: "hidden" }}>
         {loading ? (
@@ -282,6 +489,7 @@ export default function Ventas() {
             <Alert severity="error">{error}</Alert>
           </Box>
         ) : (
+          <>
           <TableContainer>
             <Table>
               <TableHead>
@@ -307,7 +515,7 @@ export default function Ventas() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {rows.map((v) => {
+                {rows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((v) => {
                   const { fecha, hora } = fmtFecha(v.fecha);
                   return (
                     <TableRow
@@ -344,8 +552,16 @@ export default function Ventas() {
                         <IconButton
                           size="small"
                           onClick={() => navigate(`/ventas/${v.id}`)}
+                          title="Ver detalle"
                         >
                           <Visibility fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDescargarPDF(v.id)}
+                          title="Descargar PDF"
+                        >
+                          <PictureAsPdf fontSize="small" />
                         </IconButton>
                         {v.estado === 1 && (
                           <Button
@@ -393,6 +609,21 @@ export default function Ventas() {
               </TableBody>
             </Table>
           </TableContainer>
+          <TablePagination
+            component="div"
+            count={rows.length}
+            page={page}
+            onPageChange={(_, newPage) => setPage(newPage)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(e) => {
+              setRowsPerPage(parseInt(e.target.value, 10));
+              setPage(0);
+            }}
+            rowsPerPageOptions={[5, 10, 25, 50]}
+            labelRowsPerPage="Filas por página:"
+            labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
+          />
+          </>
         )}
       </Card>
 
@@ -401,16 +632,18 @@ export default function Ventas() {
         autoHideDuration={3000}
         onClose={() => setSnack((s) => ({ ...s, open: false }))}
         anchorOrigin={{ vertical: "top", horizontal: "right" }}
+        sx={{ zIndex: (t) => t.zIndex.modal + 100, mt: 8 }}
       >
         <MuiAlert
           onClose={() => setSnack((s) => ({ ...s, open: false }))}
           severity={snack.severity}
           variant="filled"
-          sx={{ width: "100%" }}
+          sx={{ width: "100%", zIndex: (t) => t.zIndex.modal + 100 }}
         >
           {snack.message}
         </MuiAlert>
       </Snackbar>
-    </Box>
+      </Box>
+    </LocalizationProvider>
   );
 }

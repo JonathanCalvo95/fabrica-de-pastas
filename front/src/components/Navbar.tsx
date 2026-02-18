@@ -12,21 +12,22 @@ import {
   ListItem,
   ListItemText,
   Divider,
+  alpha,
 } from "@mui/material";
 import {
-  EggAlt,
   Notifications as NotificationsIcon,
   Warning as WarningIcon,
   Menu as MenuIcon,
+  AccountCircle as AccountCircleIcon,
 } from "@mui/icons-material";
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link as RouterLink } from "react-router-dom";
+
 import { getDashboard } from "../api/dashboard";
 import { getCajaActual } from "../api/caja";
 import { parseJwt } from "../utils/auth";
 import { useSidebarCollapsed } from "../context/SidebarContext";
 import { layout } from "../theme/Theme";
-import { Link as RouterLink } from "react-router-dom";
 
 interface NavbarProps {
   onHeightChange?: (height: number) => void;
@@ -39,12 +40,37 @@ interface LowStockItem {
   stockMinimo: string;
 }
 
+function LogoMark() {
+  return (
+    <Box
+      sx={{
+        width: 40,
+        height: 40,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <img
+        src="/logo.png"
+        alt="La Yema de Oro"
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+        }}
+      />
+    </Box>
+  );
+}
+
 export const Navbar = ({ onHeightChange }: NavbarProps) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
   const [name, setName] = useState("");
   const [lowStock, setLowStock] = useState<LowStockItem[]>([]);
   const [cajaAbierta, setCajaAbierta] = useState(false);
+
   const navigate = useNavigate();
   const barRef = useRef<HTMLDivElement | null>(null);
 
@@ -54,11 +80,26 @@ export const Navbar = ({ onHeightChange }: NavbarProps) => {
     : layout.DRAWER_WIDTH;
 
   useEffect(() => {
+    const storedUser = localStorage.getItem("usuario");
+    if (storedUser && storedUser.trim().length > 0) {
+      setName(storedUser.trim());
+      return;
+    }
     const token = localStorage.getItem("authToken");
     if (token) {
       const payload = parseJwt(token);
-      const n = (payload?.name || payload?.Name) as string | undefined;
-      if (typeof n === "string") setName(n);
+      if (payload) {
+        const possible = [
+          payload.name,
+          payload.Name,
+          payload.usuario,
+          payload.user,
+          payload.username,
+        ].filter(
+          (v) => typeof v === "string" && v.trim().length > 0
+        ) as string[];
+        if (possible.length) setName(possible[0]);
+      }
     }
   }, []);
 
@@ -67,7 +108,7 @@ export const Navbar = ({ onHeightChange }: NavbarProps) => {
     (async () => {
       try {
         const data = await getDashboard();
-        if (mounted) {
+        if (mounted && data.lowStock) {
           const items: LowStockItem[] = data.lowStock.map(
             (l: any, idx: number) => ({
               id: `${idx}`,
@@ -78,7 +119,9 @@ export const Navbar = ({ onHeightChange }: NavbarProps) => {
           );
           setLowStock(items);
         }
-      } catch {}
+      } catch {
+        if (mounted) setLowStock([]);
+      }
     })();
     return () => {
       mounted = false;
@@ -130,11 +173,16 @@ export const Navbar = ({ onHeightChange }: NavbarProps) => {
       position="fixed"
       elevation={0}
       sx={{
-        bgcolor: "primary.main",
-        borderBottom: `${layout.BORDER}`,
+        background: (t) =>
+          `linear-gradient(135deg, ${alpha(
+            t.palette.primary.main,
+            0.9
+          )}, ${alpha(t.palette.primary.dark, 0.9)})`,
+        color: (t) => t.palette.primary.contrastText,
+        borderBottom: layout.BORDER,
         borderColor: "divider",
         zIndex: (t) => t.zIndex.drawer + 2,
-        boxShadow: "none",
+        boxShadow: "0 8px 20px rgba(0,0,0,0.06)",
         left: 0,
         width: "100%",
       }}
@@ -143,10 +191,12 @@ export const Navbar = ({ onHeightChange }: NavbarProps) => {
         sx={{
           justifyContent: "space-between",
           minHeight: layout.TOPBAR_HEIGHT,
-          pl: `${drawerWidth}px`,
-          transition: "padding-left 0.3s ease",
+          pl: `${drawerWidth + 8}px`,
+          pr: 3,
+          transition: "padding-left 0.28s ease",
         }}
       >
+        {/* Izquierda */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
           <IconButton
             onClick={toggle}
@@ -158,29 +208,21 @@ export const Navbar = ({ onHeightChange }: NavbarProps) => {
 
           <Box
             component={RouterLink}
-            to="/"
+            to="/dashboard"
             sx={{
               display: "flex",
               alignItems: "center",
-              gap: 1,
+              gap: 1.2,
               textDecoration: "none",
               color: "inherit",
             }}
           >
-            <Box
-              sx={{
-                width: 32,
-                height: 32,
-                borderRadius: 2,
-                bgcolor: "white",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
+            <LogoMark />
+            <Typography
+              variant="h6"
+              fontWeight={700}
+              sx={{ letterSpacing: -0.2 }}
             >
-              <EggAlt sx={{ color: "primary.main", fontSize: 20 }} />
-            </Box>
-            <Typography variant="h6" fontWeight="bold" color="">
               La Yema de Oro
             </Typography>
           </Box>
@@ -190,33 +232,40 @@ export const Navbar = ({ onHeightChange }: NavbarProps) => {
               sx={{
                 display: "flex",
                 alignItems: "center",
-                gap: 0.75,
-                bgcolor: "rgba(245, 158, 11, 0.2)",
-                color: "#2C1810",
-                px: 1.5,
-                py: 0.5,
+                gap: 1,
+                bgcolor: "rgba(255,255,255,0.95)",
+                color: "warning.dark",
+                px: 2,
+                py: 0.75,
+                border: "2px solid",
+                borderColor: "warning.main",
                 borderRadius: 1,
-                border: "1px solid rgba(245, 158, 11, 0.3)",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
               }}
             >
-              <WarningIcon sx={{ fontSize: 16 }} />
-              <Typography variant="caption" fontWeight={500}>
-                Caja abierta
+              <WarningIcon sx={{ fontSize: 20, color: "warning.main" }} />
+              <Typography variant="body2" fontWeight={700} sx={{ letterSpacing: 0.3 }}>
+                CAJA ABIERTA
               </Typography>
             </Box>
           )}
         </Box>
 
-        {/* Bloque derecho */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        {/* Derecha */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
           <IconButton
             size="large"
             onClick={handleNotifMenu}
-            color="inherit"
-            sx={{ color: "#2C1810" }}
+            sx={{
+              color: "white",
+            }}
           >
-            <Badge badgeContent={lowStock.length} color="error">
-              <NotificationsIcon sx={{ color: "white" }} />
+            <Badge
+              badgeContent={lowStock.length}
+              color="error"
+              overlap="circular"
+            >
+              <NotificationsIcon />
             </Badge>
           </IconButton>
 
@@ -226,15 +275,28 @@ export const Navbar = ({ onHeightChange }: NavbarProps) => {
             onClose={handleNotifClose}
             anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
             transformOrigin={{ vertical: "top", horizontal: "right" }}
-            PaperProps={{ sx: { mt: 1, minWidth: 300, maxHeight: 400 } }}
           >
             <Box sx={{ px: 2, py: 1.5 }}>
-              <Typography variant="subtitle2" fontWeight="bold">
-                Stock Bajo
+              <Typography variant="subtitle2" fontWeight={700}>
+                Stock bajo
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Productos por debajo del stock mínimo.
               </Typography>
             </Box>
             <Divider />
             <List sx={{ py: 0 }}>
+              {lowStock.length === 0 && (
+                <ListItem>
+                  <ListItemText
+                    primary="Sin alertas de stock."
+                    primaryTypographyProps={{
+                      variant: "body2",
+                      color: "text.secondary",
+                    }}
+                  />
+                </ListItem>
+              )}
               {lowStock.map((p) => (
                 <ListItem
                   key={p.id}
@@ -264,21 +326,43 @@ export const Navbar = ({ onHeightChange }: NavbarProps) => {
             </List>
           </Menu>
 
+          {name && (
+            <Typography
+              variant="body2"
+              sx={{
+                color: "white",
+                fontWeight: 600,
+                maxWidth: 160,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+              title={name}
+            >
+              {name}
+            </Typography>
+          )}
+
           <IconButton
-            size="large"
             onClick={handleMenu}
-            color="inherit"
-            sx={{ color: "#2C1810" }}
+            sx={{
+              color: "white",
+            }}
           >
             <Avatar
               sx={{
                 width: 32,
                 height: 32,
-                bgcolor: "#2C1810",
+                bgcolor: "white",
+                color: "primary.contrastText",
                 fontSize: "0.875rem",
               }}
             >
-              {name ? name.charAt(0).toUpperCase() : "U"}
+              <AccountCircleIcon
+                sx={{
+                  color: "primary.dark",
+                }}
+              />
             </Avatar>
           </IconButton>
 
@@ -288,18 +372,7 @@ export const Navbar = ({ onHeightChange }: NavbarProps) => {
             onClose={handleClose}
             anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
             transformOrigin={{ vertical: "top", horizontal: "right" }}
-            PaperProps={{ sx: { mt: 1, minWidth: 200 } }}
           >
-            {name && (
-              <>
-                <Box sx={{ px: 2, py: 1.5 }}>
-                  <Typography variant="body2" fontWeight="medium">
-                    {name}
-                  </Typography>
-                </Box>
-                <Divider />
-              </>
-            )}
             <MenuItem
               onClick={() => {
                 handleClose();
@@ -310,7 +383,7 @@ export const Navbar = ({ onHeightChange }: NavbarProps) => {
             </MenuItem>
             <Divider />
             <MenuItem onClick={handleLogout} sx={{ color: "error.main" }}>
-              Cerrar Sesión
+              Cerrar sesión
             </MenuItem>
           </Menu>
         </Box>

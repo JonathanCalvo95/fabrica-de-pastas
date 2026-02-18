@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Box,
   Card,
@@ -16,17 +16,31 @@ import {
   Alert,
   Snackbar,
   Alert as MuiAlert,
+  InputAdornment,
 } from "@mui/material";
-import { Add, Edit, Delete } from "@mui/icons-material";
+import { 
+  Add, 
+  Edit, 
+  Delete, 
+  Search,
+} from "@mui/icons-material";
 import { get, post, put, del, type Producto } from "../api/productos";
 import { medidaLabel, categoriaLabel, CATEGORY_OPTIONS } from "../utils/enums";
 import { pluralAuto } from "../utils/plural";
+
+const money = (v: number) =>
+  v.toLocaleString("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    maximumFractionDigits: 0,
+  });
 
 export default function Productos() {
   // estado principal
   const [productos, setProductos] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // diálogos y formulario
   const [openCreate, setOpenCreate] = useState(false);
@@ -129,10 +143,31 @@ export default function Productos() {
       await del(openDelete.id);
       setProductos((prev) => prev.filter((x) => x.id !== openDelete.id));
       setOpenDelete(null);
+      setSnack({ open: true, message: "Producto eliminado correctamente", severity: "success" });
     } catch (e: any) {
-      alert(e?.response?.data ?? "No se pudo eliminar el producto");
+      const msg = e?.response?.data ?? "No se pudo eliminar el producto";
+      setSnack({ open: true, message: msg, severity: "error" });
     }
   };
+
+  // Filtrar productos por término de búsqueda
+  const filteredProductos = productos.filter((p) => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    const categoria = categoriaLabel(p.categoria).toLowerCase();
+    const descripcion = p.descripcion.toLowerCase();
+    return categoria.includes(term) || descripcion.includes(term);
+  });
+
+  // KPIs calculados (productos ya vienen filtrados por activo=true desde el backend)
+  const kpis = useMemo(() => {
+    const valorInventario = productos.reduce((acc, p) => acc + (p.stock * p.precio), 0);
+
+    return {
+      totalActivos: productos.length,
+      valorInventario,
+    };
+  }, [productos]);
 
   // UI estados
   if (loading)
@@ -152,17 +187,22 @@ export default function Productos() {
     <Box sx={{ p: 4 }}>
       <Box
         sx={{
+          mb: 3,
           display: "flex",
+          flexDirection: { xs: "column", md: "row" },
           justifyContent: "space-between",
-          alignItems: "flex-start",
-          mb: 2,
+          alignItems: { xs: "flex-start", md: "center" },
+          gap: 2,
         }}
       >
         <Box>
-          <Typography variant="h4" sx={{ mb: 1, fontWeight: 600 }}>
+          <Typography
+            variant="h1"
+            sx={{ mb: 0.5, letterSpacing: -0.3, fontWeight: 700 }}
+          >
             Productos
           </Typography>
-          <Typography variant="body1" color="text.secondary">
+          <Typography variant="body2" color="text.secondary">
             Gestión de productos
           </Typography>
         </Box>
@@ -174,6 +214,59 @@ export default function Productos() {
           Nuevo Producto
         </Button>
       </Box>
+
+      {/* KPIs */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" },
+          gap: 3,
+          mb: 3,
+        }}
+      >
+        <Card>
+          <CardContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+              Productos Activos
+            </Typography>
+            <Typography variant="h3" color="primary.main" fontWeight={700}>
+              {kpis.totalActivos}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              en el catálogo
+            </Typography>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+              Valor del Inventario
+            </Typography>
+            <Typography variant="h3" color="success.main" fontWeight={700}>
+              {money(kpis.valorInventario)}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              Estimado (precio × stock)
+            </Typography>
+          </CardContent>
+        </Card>
+      </Box>
+
+      <TextField
+        fullWidth
+        placeholder="Buscar por nombre o descripción..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        sx={{ mb: 3 }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <Search />
+            </InputAdornment>
+          ),
+        }}
+      />
       <Box
         sx={{
           display: "grid",
@@ -185,7 +278,7 @@ export default function Productos() {
           gap: 3,
         }}
       >
-        {productos.map((p) => (
+        {filteredProductos.map((p) => (
           <Card key={p.id} sx={{ "&:hover": { boxShadow: 6 } }}>
             <CardContent>
               <Box
@@ -283,12 +376,13 @@ export default function Productos() {
         autoHideDuration={3000}
         onClose={() => setSnack((s) => ({ ...s, open: false }))}
         anchorOrigin={{ vertical: "top", horizontal: "right" }}
+        sx={{ zIndex: (t) => t.zIndex.modal + 100, mt: 8 }}
       >
         <MuiAlert
           onClose={() => setSnack((s) => ({ ...s, open: false }))}
           severity={snack.severity}
           variant="filled"
-          sx={{ width: "100%" }}
+          sx={{ width: "100%", zIndex: (t) => t.zIndex.modal + 100 }}
         >
           {snack.message}
         </MuiAlert>

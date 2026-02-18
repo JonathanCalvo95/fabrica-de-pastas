@@ -1,7 +1,4 @@
 import { useState, useEffect } from "react";
-import { useSidebarCollapsed } from "../context/SidebarContext";
-import { getUserRole } from "../utils/auth";
-import { MENU_ITEMS } from "../config/navigation";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Drawer,
@@ -11,13 +8,18 @@ import {
   ListItemIcon,
   ListItemText,
   Collapse,
+  Box,
 } from "@mui/material";
-import { AttachMoney, ExpandLess, ExpandMore } from "@mui/icons-material";
+import { Dvr, ExpandLess, ExpandMore } from "@mui/icons-material";
+
+import { useSidebarCollapsed } from "../context/SidebarContext";
+import { getUserRole } from "../utils/auth";
+import { MENU_ITEMS } from "../config/navigation";
 import { layout } from "../theme/Theme";
 
 type MenuItem = {
   title: string;
-  icon: any;
+  icon: React.ElementType;
   path: string;
   allowedRoles?: string[];
 };
@@ -34,6 +36,7 @@ export function Sidebar() {
   const { collapsed, toggle } = useSidebarCollapsed();
   const [preciosOpen, setPreciosOpen] = useState(false);
   const location = useLocation();
+  const role = getUserRole();
 
   const drawerWidth = collapsed
     ? layout.DRAWER_WIDTH_COLLAPSED
@@ -44,9 +47,8 @@ export function Sidebar() {
       if (collapsed) toggle();
       setPreciosOpen(true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
-
-  const role = getUserRole();
 
   const handlePreciosClick = () => {
     if (collapsed) {
@@ -66,100 +68,140 @@ export function Sidebar() {
         "& .MuiDrawer-paper": {
           width: drawerWidth,
           boxSizing: "border-box",
-          transition: "width 0.3s",
           pt: `${layout.TOPBAR_HEIGHT}px`,
-          borderRight: `${layout.BORDER}`,
+          borderRight: layout.BORDER,
           borderColor: "divider",
+          bgcolor: "background.paper",
+          transition: "width 0.28s ease",
+          display: "flex",
+          flexDirection: "column",
         },
       }}
     >
-      <List sx={{ px: 1, py: 2, flexGrow: 1 }}>
-        {menuItems
-          .filter(
-            (item) =>
-              !item.allowedRoles || item.allowedRoles.includes(role ?? "")
-          )
-          .map((item) => (
-            <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
-              <ListItemButton
-                component={NavLink}
-                to={item.path}
-                sx={{
-                  borderRadius: 2,
-                  "&.active": {
-                    bgcolor: "primary.main",
-                    color: "primary.contrastText",
-                    "& .MuiListItemIcon-root": {
-                      color: "primary.contrastText",
-                    },
-                    fontWeight: 600,
-                  },
-                  "&:hover": { bgcolor: "action.hover" },
-                }}
-              >
-                <ListItemIcon
-                  sx={{
-                    minWidth: collapsed ? "unset" : 40,
-                    color: "text.secondary",
-                  }}
-                >
-                  <item.icon />
-                </ListItemIcon>
-                {!collapsed && <ListItemText primary={item.title} />}
-              </ListItemButton>
-            </ListItem>
-          ))}
-
-        {/* Botón de Precios */}
-        <ListItem disablePadding sx={{ mb: 0.5 }}>
-          <ListItemButton
-            onClick={handlePreciosClick}
-            aria-expanded={preciosOpen}
-            sx={{ borderRadius: 2, "&:hover": { bgcolor: "action.hover" } }}
-          >
-            <ListItemIcon
-              sx={{
-                minWidth: collapsed ? "unset" : 40,
-                color: "text.secondary",
-              }}
-            >
-              <AttachMoney />
-            </ListItemIcon>
-
-            {!collapsed && (
-              <>
-                <ListItemText primary="Precios" />
-                {preciosOpen ? <ExpandLess /> : <ExpandMore />}
-              </>
-            )}
-          </ListItemButton>
-        </ListItem>
-
-        <Collapse in={preciosOpen && !collapsed} timeout="auto" unmountOnExit>
-          <List component="div" disablePadding>
-            {preciosItems.map((item) => (
+      <Box
+        sx={{
+          px: collapsed ? 1 : 2,
+          py: 2,
+          flexGrow: 1,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <List sx={{ p: 0, flexGrow: 1 }}>
+          {menuItems
+            .filter(
+              (item) =>
+                !item.allowedRoles || item.allowedRoles.includes(role ?? "")
+            )
+            .map((item) => (
               <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
                 <ListItemButton
                   component={NavLink}
                   to={item.path}
                   sx={{
-                    borderRadius: 2,
-                    pl: 4,
+                    px: collapsed ? 1.2 : 1.8,
+                    gap: collapsed ? 0 : 1.4,
+                    "& .MuiListItemIcon-root": {
+                      minWidth: collapsed ? 0 : 28,
+                      color: "text.secondary",
+                    },
+                    "& .MuiSvgIcon-root": {
+                      fontSize: "1.2rem",
+                    },
+                    "& .MuiListItemText-primary": {
+                      fontSize: "0.9rem",
+                      fontWeight: 500,
+                      color: "text.secondary",
+                    },
                     "&.active": {
                       bgcolor: "primary.main",
-                      color: "primary.contrastText",
-                      fontWeight: 600,
+                      "& .MuiListItemText-primary": {
+                        color: "text.primary",
+                        fontWeight: 600,
+                      },
                     },
-                    "&:hover": { bgcolor: "action.hover" },
                   }}
                 >
-                  <ListItemText primary={item.title} />
+                  <ListItemIcon>
+                    <item.icon />
+                  </ListItemIcon>
+                  {!collapsed && <ListItemText primary={item.title} />}
                 </ListItemButton>
               </ListItem>
             ))}
-          </List>
-        </Collapse>
-      </List>
+
+          {/* Botón Precios */}
+          <ListItem disablePadding sx={{ mb: 0.5 }}>
+            <ListItemButton
+              onClick={handlePreciosClick}
+              aria-expanded={preciosOpen}
+              sx={{
+                px: collapsed ? 1.2 : 1.8,
+                py: 0.8,
+                gap: collapsed ? 0 : 1.4,
+                "& .MuiListItemIcon-root": {
+                  minWidth: collapsed ? 0 : 28,
+                  color: "text.secondary",
+                },
+                "& .MuiSvgIcon-root": {
+                  fontSize: "1.2rem",
+                },
+                "& .MuiListItemText-primary": {
+                  fontSize: "0.9rem",
+                  fontWeight: 500,
+                  color: "text.secondary",
+                },
+                "&:hover": {
+                  bgcolor: "rgba(255,255,255,0.65)",
+                },
+              }}
+            >
+              <ListItemIcon>
+                <Dvr />
+              </ListItemIcon>
+
+              {!collapsed && (
+                <>
+                  <ListItemText primary="Precios" />
+                  {preciosOpen ? <ExpandLess /> : <ExpandMore />}
+                </>
+              )}
+            </ListItemButton>
+          </ListItem>
+
+          <Collapse in={preciosOpen && !collapsed} timeout="auto" unmountOnExit>
+            <List component="div" disablePadding>
+              {preciosItems.map((item) => (
+                <ListItem key={item.path} disablePadding sx={{ mb: 0.3 }}>
+                  <ListItemButton
+                    component={NavLink}
+                    to={item.path}
+                    sx={{
+                      ml: 3.5,
+                      px: 1.8,
+                      py: 0.65,
+                      "& .MuiListItemText-primary": {
+                        fontSize: "0.85rem",
+                        color: "text.secondary",
+                      },
+                      "&.active": {
+                        bgcolor: "rgba(212,165,116,0.18)",
+                        "& .MuiListItemText-primary": {
+                          color: "text.primary",
+                          fontWeight: 600,
+                        },
+                      },
+                      "&:hover": { bgcolor: "rgba(255,255,255,0.75)" },
+                    }}
+                  >
+                    <ListItemText primary={item.title} />
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            </List>
+          </Collapse>
+        </List>
+      </Box>
     </Drawer>
   );
 }

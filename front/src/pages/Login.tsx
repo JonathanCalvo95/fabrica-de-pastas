@@ -12,10 +12,9 @@ import {
   IconButton,
 } from "@mui/material";
 import {
+  AttachMoney,
   Visibility,
   VisibilityOff,
-  Login as LoginIcon,
-  AttachMoney,
 } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import { login, type ILoginRequest } from "../api/auth";
@@ -67,16 +66,26 @@ export default function Login() {
             bgcolor: "background.paper",
           }}
         >
-          <LoginIcon sx={{ fontSize: 60, color: "primary.main", mb: 2 }} />
-
-          <Typography
-            component="h1"
-            variant="h4"
-            gutterBottom
-            fontWeight="bold"
+          <Box
+            sx={{
+              width: 200,
+              height: 200,
+              mb: 2,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
           >
-            Iniciar Sesión
-          </Typography>
+            <img
+              src="/logo.png"
+              alt="La Yema de Oro"
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+              }}
+            />
+          </Box>
 
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
             Ingresa tus credenciales para acceder al sistema

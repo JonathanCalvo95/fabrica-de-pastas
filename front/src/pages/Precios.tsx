@@ -1,9 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Box, Typography, Paper } from "@mui/material";
+import { Box, Typography, Paper, Chip, IconButton, Card, CardContent, CircularProgress } from "@mui/material";
 import { useNavigate, useParams, Navigate } from "react-router-dom";
 import { categoriaLabel } from "../utils/enums";
 import { get, type Producto } from "../api/productos";
-import { ArrowBack, CropFree } from "@mui/icons-material";
+import { ArrowBack, Fullscreen, FullscreenExit } from "@mui/icons-material";
 
 const REFRESH_MS = 45_000; // intervalo de actualización (ms)
 
@@ -50,29 +50,20 @@ const GRUPOS_PANTALLAS: number[][] = [
 /* ===== UI ===== */
 function StatusPill({ status }: { status: RowStatus }) {
   if (status === "ok") return null;
-  const cfg =
-    status === "out"
-      ? { bg: "#ffdede", bd: "#d32f2f", fg: "#b71c1c", text: "SIN STOCK" }
-      : { bg: "#fff1da", bd: "#ef6c00", fg: "#e65100", text: "STOCK BAJO" };
+  
   return (
-    <Box
-      component="span"
+    <Chip
+      label={status === "out" ? "SIN STOCK" : "STOCK BAJO"}
+      color={status === "out" ? "error" : "warning"}
+      size="small"
       sx={{
         ml: 1,
-        px: 0.7,
-        py: 0.1,
-        borderRadius: "4px",
-        fontSize: 11,
-        fontWeight: 900,
-        letterSpacing: 0.3,
-        color: cfg.fg,
-        background: cfg.bg,
-        border: `1px solid ${cfg.bd}`,
-        whiteSpace: "nowrap",
+        height: 20,
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: 0.5,
       }}
-    >
-      {cfg.text}
-    </Box>
+    />
   );
 }
 
@@ -87,43 +78,34 @@ function Fila({
   status: RowStatus;
   last?: boolean;
 }) {
-  const priceColor = status === "out" ? "#9e9e9e" : "#8e1a1a";
-  const nameStyle =
-    status === "out"
-      ? {
-          color: "#777",
-          textDecoration: "line-through",
-          opacity: 0.8,
-        }
-      : status === "low"
-        ? { color: "#b95b00" }
-        : { color: "#a01818" };
+  const isDisabled = status === "out";
 
   return (
     <Box
       sx={{
-        display: "grid",
-        gridTemplateColumns: "1fr 88px",
+        display: "flex",
+        justifyContent: "space-between",
         alignItems: "center",
-        minHeight: 36,
+        py: 1.5,
         px: 2,
-        borderBottom: last ? "none" : "2px solid #3E2723",
-        gap: 1,
+        borderBottom: last ? "none" : "1px solid",
+        borderColor: "divider",
+        "&:hover": {
+          bgcolor: "action.hover",
+        },
+        opacity: isDisabled ? 0.6 : 1,
       }}
     >
-      <Box sx={{ minWidth: 0, display: "flex", alignItems: "center" }}>
+      <Box sx={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0 }}>
         <Typography
           sx={{
-            fontSize: { xs: 13, md: 14, lg: 15 },
-            fontWeight: 800,
-            textTransform: "uppercase",
-            letterSpacing: ".6px",
-            pr: 1,
-            lineHeight: 1.15,
-            whiteSpace: "nowrap",
+            fontSize: 14,
+            fontWeight: 600,
+            textDecoration: isDisabled ? "line-through" : "none",
+            color: status === "low" ? "warning.dark" : "text.primary",
             overflow: "hidden",
             textOverflow: "ellipsis",
-            ...nameStyle,
+            whiteSpace: "nowrap",
           }}
           title={name}
         >
@@ -132,18 +114,17 @@ function Fila({
         <StatusPill status={status} />
       </Box>
 
-      <Box
+      <Typography
         sx={{
-          justifySelf: "end",
-          color: priceColor,
-          opacity: status === "out" ? 0.75 : 1,
+          fontSize: 15,
+          fontWeight: 700,
+          color: isDisabled ? "text.disabled" : "primary.main",
+          ml: 2,
+          whiteSpace: "nowrap",
         }}
-        title={price}
       >
-        <Typography sx={{ fontSize: { md: 15 }, fontWeight: 900 }}>
-          {price}
-        </Typography>
-      </Box>
+        {price}
+      </Typography>
     </Box>
   );
 }
@@ -156,29 +137,35 @@ function Tablero({
   productos: { name: string; price: string; status: RowStatus }[];
 }) {
   return (
-    <Paper
-      elevation={0}
+    <Card
       sx={{
-        border: "4px solid #3E2723",
-        borderRadius: 1,
-        overflow: "hidden",
-        bgcolor: "#FAFAFA",
         height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        borderRadius: 2,
+        border: "1px solid",
+        borderColor: "divider",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+        overflow: "hidden",
       }}
     >
       <Box
         sx={{
-          background: "#3E2723",
-          color: "#fff",
-          px: 2,
-          py: 1,
-          borderBottom: "3px solid #3E2723",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
+          bgcolor: "primary.main",
+          color: "primary.contrastText",
+          px: 3,
+          py: 2,
+          borderBottom: "1px solid",
+          borderColor: "divider",
         }}
       >
-        <Typography sx={{ fontWeight: 900, letterSpacing: 1.6, fontSize: 16 }}>
+        <Typography
+          sx={{
+            fontWeight: 700,
+            fontSize: 18,
+            letterSpacing: 0.5,
+          }}
+        >
           {name}
         </Typography>
       </Box>
@@ -187,8 +174,7 @@ function Tablero({
         sx={{
           flex: 1,
           overflowY: "auto",
-          background:
-            "repeating-linear-gradient(to bottom,#ffffff 0px,#ffffff 34px,#ffeaea 35px)",
+          bgcolor: "background.paper",
         }}
       >
         {productos.map((p, i) => (
@@ -201,7 +187,7 @@ function Tablero({
           />
         ))}
       </Box>
-    </Paper>
+    </Card>
   );
 }
 
@@ -210,6 +196,7 @@ export default function Precios() {
   const { n } = useParams();
   const pageFromUrl = Math.max(1, Number(n || 1));
   const [loading, setLoading] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [pages, setPages] = useState<
     {
       name: string;
@@ -297,7 +284,7 @@ export default function Precios() {
   const go = useCallback(
     (target: number) => {
       const next = ((target - 1 + maxPage) % maxPage) + 1;
-      navigate(`/precio/${next}`, { replace: true });
+      navigate(`/precios/${next}`, { replace: true });
     },
     [navigate, maxPage]
   );
@@ -309,8 +296,13 @@ export default function Precios() {
       if (e.key === "ArrowRight") go(pageFromUrl + 1);
       if (e.key.toLowerCase() === "f") {
         const elem = document.documentElement;
-        if (!document.fullscreenElement) elem.requestFullscreen?.();
-        else document.exitFullscreen?.();
+        if (!document.fullscreenElement) {
+          elem.requestFullscreen?.();
+          setIsFullscreen(true);
+        } else {
+          document.exitFullscreen?.();
+          setIsFullscreen(false);
+        }
       }
       if (e.key.toLowerCase() === "r") {
         // refresh manual
@@ -321,111 +313,186 @@ export default function Precios() {
     return () => window.removeEventListener("keydown", onKey);
   }, [go, pageFromUrl, fetchAndMaybeUpdate]);
 
+  // Escuchar cambios de fullscreen
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
   if (!loading && (pageFromUrl < 1 || pageFromUrl > maxPage)) {
-    return <Navigate to={`/precio/1`} replace />;
+    return <Navigate to={`/precios/1`} replace />;
   }
 
   return (
     <Box
       sx={{
-        minHeight: "100dvh",
-        bgcolor: "#f3e8c9",
-        p: { xs: 1.5, md: 3 },
+        minHeight: "100vh",
+        bgcolor: "background.default",
+        p: { xs: 2, md: 4 },
+        position: "relative",
+        overflow: "hidden",
+
+        // Fondos decorativos
+        "&::before": {
+          content: '""',
+          position: "fixed",
+          pointerEvents: "none",
+          width: 800,
+          height: 800,
+          borderRadius: "50%",
+          top: -300,
+          left: -200,
+          background: (t) =>
+            `radial-gradient(circle at center, ${t.palette.primary.main}20 0%, transparent 70%)`,
+          zIndex: 0,
+        },
+        "&::after": {
+          content: '""',
+          position: "fixed",
+          pointerEvents: "none",
+          width: 700,
+          height: 700,
+          borderRadius: "50%",
+          bottom: -250,
+          right: -150,
+          background: (t) =>
+            `radial-gradient(circle at center, ${t.palette.secondary.main}30 0%, transparent 70%)`,
+          zIndex: 0,
+        },
       }}
     >
-      {loading ? (
-        <Box sx={{ height: "80dvh", display: "grid", placeItems: "center" }}>
-          <Typography variant="h6" sx={{ color: "#5a3a2b" }}>
-            Cargando precios…
-          </Typography>
-        </Box>
-      ) : (
+      <Box sx={{ maxWidth: 1600, mx: "auto", position: "relative", zIndex: 1 }}>
+        {/* Header con título */}
         <Box
           sx={{
-            height: "100%",
-            maxWidth: 1600,
-            mx: "auto",
-            display: "grid",
-            gap: { xs: 1.5, md: 3 },
-            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0,1fr))" },
-            alignItems: "stretch",
+            mb: 3,
+            display: "flex",
+            flexDirection: { xs: "column", md: "row" },
+            justifyContent: "space-between",
+            alignItems: { xs: "flex-start", md: "center" },
+            gap: 2,
           }}
         >
-          {current?.map((c) => (
-            <Tablero
-              key={c.name}
-              name={c.name.toLocaleUpperCase()}
-              productos={c.productos}
-            />
-          ))}
+          <Box>
+            <Typography
+              variant="h1"
+              sx={{ mb: 0.5, letterSpacing: -0.3, fontWeight: 700 }}
+            >
+              Lista de Precios
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Consulta nuestros productos y disponibilidad
+            </Typography>
+          </Box>
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <IconButton
+              onClick={() => navigate("/")}
+              color="primary"
+              sx={{
+                bgcolor: "background.paper",
+                border: "1px solid",
+                borderColor: "divider",
+                "&:hover": {
+                  bgcolor: "action.hover",
+                },
+              }}
+              title="Volver al inicio"
+            >
+              <ArrowBack />
+            </IconButton>
+            <IconButton
+              onClick={() => {
+                const elem = document.documentElement;
+                if (!document.fullscreenElement) {
+                  elem.requestFullscreen?.();
+                } else {
+                  document.exitFullscreen?.();
+                }
+              }}
+              color="primary"
+              sx={{
+                bgcolor: "background.paper",
+                border: "1px solid",
+                borderColor: "divider",
+                "&:hover": {
+                  bgcolor: "action.hover",
+                },
+              }}
+              title="Pantalla completa (tecla F)"
+            >
+              {isFullscreen ? <FullscreenExit /> : <Fullscreen />}
+            </IconButton>
+          </Box>
         </Box>
-      )}
 
-      {/* Botón volver al inicio */}
-      <Box
-        sx={{
-          position: "fixed",
-          bottom: 16,
-          left: 16,
-          zIndex: 50,
-        }}
-      >
-        <button
-          onClick={() => {
-            navigate("/");
-          }}
-          style={{
-            background: "#8e1a1a",
-            color: "#fff",
-            border: "none",
-            borderRadius: "50%",
-            width: "48px",
-            height: "48px",
-            fontSize: "22px",
-            fontWeight: "bold",
-            cursor: "pointer",
-            boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
-          }}
-          title="Volver al inicio"
-        >
-          <ArrowBack />
-        </button>
-      </Box>
+        {loading ? (
+          <Box
+            sx={{
+              height: "60vh",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 2,
+            }}
+          >
+            <CircularProgress size={48} />
+            <Typography variant="body1" color="text.secondary">
+              Cargando precios…
+            </Typography>
+          </Box>
+        ) : (
+          <Box
+            sx={{
+              height: "100%",
+              display: "grid",
+              gap: 3,
+              gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0,1fr))" },
+              alignItems: "stretch",
+            }}
+          >
+            {current?.map((c) => (
+              <Tablero
+                key={c.name}
+                name={c.name.toUpperCase()}
+                productos={c.productos}
+              />
+            ))}
+          </Box>
+        )}
 
-      {/* Botón pantalla completa */}
-      <Box
-        sx={{
-          position: "fixed",
-          bottom: 16,
-          right: 16,
-          zIndex: 50,
-        }}
-      >
-        <button
-          onClick={() => {
-            const elem = document.documentElement;
-            if (!document.fullscreenElement) {
-              elem.requestFullscreen?.();
-            } else {
-              document.exitFullscreen?.();
-            }
-          }}
-          style={{
-            background: "#8e1a1a",
-            color: "#fff",
-            border: "none",
-            borderRadius: "50%",
-            width: "48px",
-            height: "48px",
-            fontSize: "22px",
-            fontWeight: "bold",
-            cursor: "pointer",
-            boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
-          }}
-          title="Pantalla completa (tecla F)"
-        >
-          <CropFree />
-        </button>
+        {/* Indicador de página */}
+        {!loading && maxPage > 1 && (
+          <Box
+            sx={{
+              mt: 3,
+              display: "flex",
+              justifyContent: "center",
+              gap: 1,
+            }}
+          >
+            {Array.from({ length: maxPage }).map((_, i) => (
+              <Box
+                key={i}
+                sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  bgcolor: i + 1 === pageFromUrl ? "primary.main" : "divider",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  "&:hover": {
+                    bgcolor: i + 1 === pageFromUrl ? "primary.dark" : "action.hover",
+                  },
+                }}
+                onClick={() => navigate(`/precios/${i + 1}`)}
+              />
+            ))}
+          </Box>
+        )}
       </Box>
     </Box>
   );

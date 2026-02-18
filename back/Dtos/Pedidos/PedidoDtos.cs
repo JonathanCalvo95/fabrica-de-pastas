@@ -1,12 +1,16 @@
 using back.Enums;
 using back.Entities;
+using System.ComponentModel.DataAnnotations;
 
 namespace back.Dtos.Pedidos;
 
 public class PedidoCreateDto
 {
     public List<PedidoCreateItemDto> Items { get; set; } = [];
-    public string? Cliente { get; set; }
+    
+    [Required(ErrorMessage = "El nombre del cliente es obligatorio")]
+    public string Cliente { get; set; } = string.Empty;
+    
     public string? Observaciones { get; set; }
 }
 
@@ -24,6 +28,7 @@ public class PedidoListItemDto
     public EstadoPedido Estado { get; set; }
     public decimal Total { get; set; }
     public string? UsuarioId { get; set; }
+    public string? VentaId { get; set; }
 }
 
 public class PedidoDetailDto

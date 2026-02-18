@@ -20,6 +20,7 @@ export interface PedidoListItem {
   estado: EstadoPedido;
   total: number;
   usuarioId?: string;
+  ventaId?: string;
 }
 
 export interface PedidoDetail extends PedidoListItem {

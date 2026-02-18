@@ -52,13 +52,12 @@ export const metodoPagoLabel = (v?: number): string =>
   METODO_PAGO_OPTIONS.find((m) => m.value === v)?.label ?? String(v ?? "");
 
 export const ESTADO_VENTA_OPTIONS: {
-  value: 1 | 2 | 3;
+  value: 1 | 2;
   label: string;
-  color: "success" | "error" | "warning";
+  color: "success" | "error";
 }[] = [
-  { value: 1, label: "Completada", color: "success" },
+  { value: 1, label: "Realizada", color: "success" },
   { value: 2, label: "Anulada", color: "error" },
-  { value: 3, label: "Devuelta", color: "warning" },
 ];
 
 export const estadoVentaInfo = (v?: number) =>
@@ -98,3 +97,21 @@ export const ESTADO_PEDIDO_OPTIONS: {
 
 export const estadoPedidoInfo = (v?: number) =>
   ESTADO_PEDIDO_OPTIONS.find((o) => o.value === v) ?? ESTADO_PEDIDO_OPTIONS[0];
+
+// === Time helpers (ES labels) ===
+export const MONTH: string[] = [
+  "Ene",
+  "Feb",
+  "Mar",
+  "Abr",
+  "May",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dic",
+];
+
+export const WEEK: string[] = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];

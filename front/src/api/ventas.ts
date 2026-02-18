@@ -1,7 +1,7 @@
 import api from "./api";
 
 export type MetodoPago = 1 | 2 | 3; // Cash, MP, Transfer
-export type EstadoVenta = 1 | 2 | 3; // Confirmada, Anulada, Devuelta
+export type EstadoVenta = 1 | 2; // Realizada, Anulada
 
 export type VentaListItem = {
   id: string;

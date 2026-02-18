@@ -19,7 +19,7 @@ public class Venta
     [BsonRepresentation(BsonType.ObjectId)]
     public string? CajaId { get; set; }
 
-    public EstadoVenta Estado { get; set; } = EstadoVenta.Confirmada;
+    public EstadoVenta Estado { get; set; } = EstadoVenta.Realizada;
 }
 
 public class VentaItem

@@ -18,12 +18,16 @@ import {
   Alert,
   Grid,
   CircularProgress,
+  Snackbar,
+  Alert as MuiAlert,
 } from "@mui/material";
-import { ArrowBack } from "@mui/icons-material";
+import { ArrowBack, PictureAsPdf } from "@mui/icons-material";
 import { getVenta, anularVenta, type VentaDetail } from "../api/ventas";
 import { metodoPagoLabel, estadoVentaInfo, medidaLabel } from "../utils/enums";
 import { formatName } from "../utils/formatters";
 import { pluralAuto } from "../utils/plural";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const money = (n: number) =>
   n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
@@ -45,6 +49,11 @@ export default function DetalleVenta() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [snack, setSnack] = useState({
+    open: false,
+    message: "",
+    severity: "error" as "success" | "error" | "info" | "warning",
+  });
 
   // Cargar detalle desde el backend
   useEffect(() => {
@@ -127,11 +136,70 @@ export default function DetalleVenta() {
             : Math.round((it.precioUnitario ?? 0) * (it.cantidad ?? 0) * 100) / 100,
       }));
       setVenta({ ...res, items });
+      setSnack({ open: true, message: "Venta anulada correctamente", severity: "success" });
     } catch (e: any) {
-      alert(e?.response?.data ?? e?.message ?? "No se pudo anular la venta");
+      const msg = e?.response?.data ?? e?.message ?? "No se pudo anular la venta";
+      setSnack({ open: true, message: msg, severity: "error" });
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleDescargarPDF = async () => {
+    if (!venta) return;
+
+    const doc = new jsPDF();
+    
+    // Cargar y agregar logo
+    try {
+      const img = new Image();
+      img.src = '/logo.png';
+      await new Promise((resolve) => {
+        img.onload = resolve;
+        img.onerror = resolve; // Continue even if logo fails
+      });
+      if (img.complete && img.naturalWidth > 0) {
+        doc.addImage(img, 'PNG', 90, 5, 30, 30);
+      }
+    } catch (e) {
+      // Continue without logo if it fails
+    }
+    
+    // Título
+    doc.setFontSize(18);
+    doc.text("Fábrica de Pastas", 105, 42, { align: "center" });
+    doc.setFontSize(12);
+    doc.text("La Yema de Oro", 105, 49, { align: "center" });
+    doc.setFontSize(14);
+    doc.text("Detalle de Venta", 105, 57, { align: "center" });
+    
+    // Información general
+    doc.setFontSize(10);
+    doc.text(`Fecha: ${fecha} - ${hora}`, 14, 67);
+    doc.text(`Método de Pago: ${metodoPagoLabel(venta.metodoPago)}`, 14, 74);
+    doc.text(`Estado: ${estadoVentaInfo(venta.estado).label}`, 14, 81);
+    
+    // Tabla de productos
+    const tableData = venta.items.map(item => [
+      formatName(item.categoria, item.descripcion),
+      item.cantidad.toString(),
+      pluralAuto(medidaLabel(item.medida), item.cantidad),
+      money(item.precioUnitario),
+      money(item.subtotal || 0),
+    ]);
+    
+    autoTable(doc, {
+      startY: 87,
+      head: [['Producto', 'Cantidad', 'Medida', 'Precio Unit.', 'Subtotal']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [212, 165, 116] },
+      foot: [['', '', '', 'Total:', money(venta.total)]],
+      footStyles: { fillColor: [255, 255, 255], fontStyle: 'bold', textColor: [0, 0, 0] },
+    });
+    
+    // Descargar
+    doc.save(`venta-${id}.pdf`);
   };
 
   return (
@@ -157,6 +225,13 @@ export default function DetalleVenta() {
             </Typography>
           </Box>
         </Box>
+        <Button
+          variant="outlined"
+          startIcon={<PictureAsPdf />}
+          onClick={handleDescargarPDF}
+        >
+          Descargar PDF
+        </Button>
       </Box>
 
       <Grid container spacing={3}>
@@ -300,15 +375,8 @@ export default function DetalleVenta() {
                 <>
                   <Divider sx={{ my: 2 }} />
                   <Box>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ mb: 0.5 }}
-                    >
-                      Sesión de Caja
-                    </Typography>
-                    <Typography variant="body1" fontWeight={600}>
-                      #{venta.cajaId}
+                    <Typography variant="body2" color="text.secondary">
+                      Registrada en sesión de caja
                     </Typography>
                   </Box>
                 </>
@@ -347,6 +415,21 @@ export default function DetalleVenta() {
           </Card>
         </Grid>
       </Grid>
+
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={4000}
+        onClose={() => setSnack({ ...snack, open: false })}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <MuiAlert
+          onClose={() => setSnack({ ...snack, open: false })}
+          severity={snack.severity}
+          variant="filled"
+        >
+          {snack.message}
+        </MuiAlert>
+      </Snackbar>
     </Box>
   );
 }

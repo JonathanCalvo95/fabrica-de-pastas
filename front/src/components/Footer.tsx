@@ -7,17 +7,20 @@ export const Footer = () => {
     <Box
       component="footer"
       sx={{
-        py: 3,
+        py: 2,
         px: 2,
         mt: "auto",
-        backgroundColor: "background.paper",
-        borderTop: "1px solid",
-        borderColor: "divider",
+        bgcolor: "background.default",
       }}
     >
       <Container maxWidth="lg">
-        <Typography variant="body2" color="text.secondary" align="center">
-          © {currentYear} Fabrica de pastas. Todos los derechos reservados.
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          align="center"
+          sx={{ display: "block", fontSize: "0.75rem" }}
+        >
+          © {currentYear} Fábrica de pastas. Todos los derechos reservados.
         </Typography>
       </Container>
     </Box>

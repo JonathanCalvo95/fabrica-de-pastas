@@ -1,7 +1,4 @@
-import { ThemeProvider } from "@mui/material/styles";
-import { CssBaseline } from "@mui/material";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { theme } from "./theme/Theme";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import RoleRedirect from "./components/RoleRedirect";
@@ -25,144 +22,123 @@ import { NotFound, Unauthorized, Forbidden, ServerError } from "./errors";
 
 export default function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<Login />} />
 
-          {/* Precios*/}
-          <Route path="/" element={<RoleRedirect />} />
-          <Route path="/precios/:n" element={<Precios />} />
+        {/* públicos / precios */}
+        <Route path="/" element={<RoleRedirect />} />
+        <Route path="/precios/:n" element={<Precios />} />
 
-          {/* Rutas protegidas */}
-          <Route element={<ProtectedRoute />}>
-            <Route element={<AppLayout />}>
-              <Route
-                path="dashboard"
-                element={<ProtectedRoute allowedRoles={["Administrador"]} />}
-              >
-                <Route index element={<Dashboard />} />
-              </Route>
+        {/* protegidas */}
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AppLayout />}>
+            <Route
+              path="dashboard"
+              element={<ProtectedRoute allowedRoles={["Administrador"]} />}
+            >
+              <Route index element={<Dashboard />} />
+            </Route>
 
-              <Route
-                path="productos"
-                element={
-                  <ProtectedRoute
-                    allowedRoles={["Administrador", "Productor"]}
-                  />
-                }
-              >
-                <Route index element={<Productos />} />
-              </Route>
+            <Route
+              path="productos"
+              element={
+                <ProtectedRoute allowedRoles={["Administrador", "Productor"]} />
+              }
+            >
+              <Route index element={<Productos />} />
+            </Route>
 
-              <Route
-                path="ventas"
-                element={
-                  <ProtectedRoute
-                    allowedRoles={["Administrador", "Vendedor"]}
-                  />
-                }
-              >
-                <Route index element={<Ventas />} />
-              </Route>
+            <Route
+              path="ventas"
+              element={
+                <ProtectedRoute allowedRoles={["Administrador", "Vendedor"]} />
+              }
+            >
+              <Route index element={<Ventas />} />
+            </Route>
 
-              <Route
-                path="pedidos"
-                element={
-                  <ProtectedRoute
-                    allowedRoles={["Administrador", "Vendedor"]}
-                  />
-                }
-              >
-                <Route index element={<Pedidos />} />
-              </Route>
+            <Route
+              path="pedidos"
+              element={
+                <ProtectedRoute allowedRoles={["Administrador", "Vendedor"]} />
+              }
+            >
+              <Route index element={<Pedidos />} />
+            </Route>
 
-              <Route
-                path="ventas/crear"
-                element={
-                  <ProtectedRoute
-                    allowedRoles={["Administrador", "Vendedor"]}
-                  />
-                }
-              >
-                <Route index element={<CrearVenta />} />
-              </Route>
+            <Route
+              path="ventas/crear"
+              element={
+                <ProtectedRoute allowedRoles={["Administrador", "Vendedor"]} />
+              }
+            >
+              <Route index element={<CrearVenta />} />
+            </Route>
 
-              <Route
-                path="pedidos/crear"
-                element={
-                  <ProtectedRoute
-                    allowedRoles={["Administrador", "Vendedor"]}
-                  />
-                }
-              >
-                <Route index element={<CrearPedido />} />
-              </Route>
+            <Route
+              path="pedidos/crear"
+              element={
+                <ProtectedRoute allowedRoles={["Administrador", "Vendedor"]} />
+              }
+            >
+              <Route index element={<CrearPedido />} />
+            </Route>
 
-              <Route
-                path="ventas/:id"
-                element={
-                  <ProtectedRoute
-                    allowedRoles={["Administrador", "Vendedor"]}
-                  />
-                }
-              >
-                <Route index element={<DetalleVenta />} />
-              </Route>
+            <Route
+              path="ventas/:id"
+              element={
+                <ProtectedRoute allowedRoles={["Administrador", "Vendedor"]} />
+              }
+            >
+              <Route index element={<DetalleVenta />} />
+            </Route>
 
-              <Route
-                path="pedidos/:id"
-                element={
-                  <ProtectedRoute
-                    allowedRoles={["Administrador", "Vendedor"]}
-                  />
-                }
-              >
-                <Route index element={<DetallePedido />} />
-              </Route>
+            <Route
+              path="pedidos/:id"
+              element={
+                <ProtectedRoute allowedRoles={["Administrador", "Vendedor"]} />
+              }
+            >
+              <Route index element={<DetallePedido />} />
+            </Route>
 
-              <Route
-                path="stock"
-                element={
-                  <ProtectedRoute
-                    allowedRoles={["Administrador", "Productor"]}
-                  />
-                }
-              >
-                <Route index element={<Stock />} />
-              </Route>
+            <Route
+              path="stock"
+              element={
+                <ProtectedRoute allowedRoles={["Administrador", "Productor"]} />
+              }
+            >
+              <Route index element={<Stock />} />
+            </Route>
 
-              <Route
-                path="caja"
-                element={
-                  <ProtectedRoute
-                    allowedRoles={["Administrador", "Vendedor"]}
-                  />
-                }
-              >
-                <Route index element={<Caja />} />
-              </Route>
+            <Route
+              path="caja"
+              element={
+                <ProtectedRoute allowedRoles={["Administrador", "Vendedor"]} />
+              }
+            >
+              <Route index element={<Caja />} />
+            </Route>
 
-              <Route
-                path="usuarios"
-                element={<ProtectedRoute allowedRoles={["Administrador"]} />}
-              >
-                <Route index element={<Usuarios />} />
-              </Route>
+            <Route
+              path="usuarios"
+              element={<ProtectedRoute allowedRoles={["Administrador"]} />}
+            >
+              <Route index element={<Usuarios />} />
             </Route>
           </Route>
+        </Route>
 
-          {/* errores */}
-          <Route path="/error">
-            <Route path="401" element={<Unauthorized />} />
-            <Route path="403" element={<Forbidden />} />
-            <Route path="500" element={<ServerError />} />
-          </Route>
+        {/* errores */}
+        <Route path="/error">
+          <Route path="401" element={<Unauthorized />} />
+          <Route path="403" element={<Forbidden />} />
+          <Route path="500" element={<ServerError />} />
+        </Route>
 
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </ThemeProvider>
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </BrowserRouter>
   );
 }

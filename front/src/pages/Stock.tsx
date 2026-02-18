@@ -13,8 +13,10 @@ import {
   DialogActions,
   TextField,
   Chip,
+  Snackbar,
+  Alert as MuiAlert,
 } from "@mui/material";
-import { Warning, TrendingDown, TrendingUp } from "@mui/icons-material";
+import { Warning, TrendingDown, TrendingUp, Search } from "@mui/icons-material";
 import { get, updateStock, type Producto } from "../api/productos";
 import { medidaLabel, categoriaLabel } from "../utils/enums";
 import { pluralAuto } from "../utils/plural";
@@ -37,6 +39,12 @@ export default function Stock() {
   const [stockItems, setStockItems] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [snack, setSnack] = useState({
+    open: false,
+    message: "",
+    severity: "error" as "success" | "error" | "info" | "warning",
+  });
 
   // diálogos
   const [openAdd, setOpenAdd] = useState(false);
@@ -70,6 +78,7 @@ export default function Stock() {
     setStockItems(productos);
   };
 
+  // KPIs calculados sobre TODOS los productos (sin filtro)
   const criticalItems = stockItems.filter((i) => i.stock < i.stockMinimo);
   const healthyItems = stockItems.filter(
     (i) => i.stock >= i.stockMinimo && i.stock <= i.stockMaximo
@@ -79,11 +88,31 @@ export default function Stock() {
       ? 0
       : Math.round((healthyItems.length / stockItems.length) * 100);
 
-  // Valor del inventario (precio * stock)
+  // Valor del inventario (precio * stock) - TODOS los productos
   const inventoryValue = stockItems.reduce(
     (acc, it) => acc + (Number(it.precio) || 0) * (Number(it.stock) || 0),
     0
   );
+
+  // Filtrar productos por búsqueda (solo para la grilla)
+  const filteredItems = stockItems
+    .filter((item) => {
+      if (!searchTerm) return true;
+      const search = searchTerm.toLowerCase().replace(/-/g, " ").replace(/\s+/g, " ");
+      const nombre = formatName(item.categoria, item.descripcion).toLowerCase().replace(/-/g, " ").replace(/\s+/g, " ");
+      const categoria = categoriaLabel(item.categoria).toLowerCase();
+      const descripcion = (item.descripcion || "").toLowerCase();
+      return nombre.includes(search) || categoria.includes(search) || descripcion.includes(search);
+    })
+    .sort((a, b) => {
+      // Ordenar por prioridad: rojos (error), naranjas (warning), verdes (success)
+      const colorA = getStockColor(a.stock, a.stockMinimo);
+      const colorB = getStockColor(b.stock, b.stockMinimo);
+      
+      const prioridad: Record<string, number> = { error: 1, warning: 2, success: 3 };
+      
+      return prioridad[colorA] - prioridad[colorB];
+    });
 
   // Abrir diálogos
   const handleOpenAdd = (item: Producto) => {
@@ -114,8 +143,10 @@ export default function Stock() {
       await updateStock(selectedItem.id, newStock);
       await reload();
       setOpenAdd(false);
-    } catch {
-      alert("No se pudo actualizar el stock.");
+      setSnack({ open: true, message: "Stock actualizado correctamente", severity: "success" });
+    } catch (e: any) {
+      const msg = e?.response?.data ?? "No se pudo actualizar el stock.";
+      setSnack({ open: true, message: msg, severity: "error" });
     }
   };
 
@@ -127,8 +158,10 @@ export default function Stock() {
       await updateStock(selectedItem.id, newStock);
       await reload();
       setOpenReduce(false);
-    } catch {
-      alert("No se pudo actualizar el stock.");
+      setSnack({ open: true, message: "Stock actualizado correctamente", severity: "success" });
+    } catch (e: any) {
+      const msg = e?.response?.data ?? "No se pudo actualizar el stock.";
+      setSnack({ open: true, message: msg, severity: "error" });
     }
   };
 
@@ -150,13 +183,36 @@ export default function Stock() {
 
   return (
     <Box sx={{ p: 4 }}>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" sx={{ mb: 1, fontWeight: 600 }}>
-          Control de Stock
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Monitorea el inventario de tus productos
-        </Typography>
+      <Box
+        sx={{
+          mb: 3,
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          justifyContent: "space-between",
+          alignItems: { xs: "flex-start", md: "center" },
+          gap: 2,
+        }}
+      >
+        <Box>
+          <Typography
+            variant="h1"
+            sx={{ mb: 0.5, letterSpacing: -0.3, fontWeight: 700 }}
+          >
+            Control de Stock
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Monitorea el inventario de tus productos
+          </Typography>
+        </Box>
+        <TextField
+          placeholder="Buscar por nombre o categoría..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          sx={{ width: { xs: "100%", md: 350 } }}
+          InputProps={{
+            startAdornment: <Search sx={{ color: "text.secondary", mr: 1 }} />,
+          }}
+        />
       </Box>
 
       {/* Alerta */}
@@ -234,7 +290,7 @@ export default function Stock() {
           mb: 4,
         }}
       >
-        {stockItems.map((item) => {
+        {filteredItems.map((item) => {
           const max = Math.max(1, item.stockMaximo ?? 1);
           const percentage = Math.min(100, (item.stock / max) * 100);
           const stockColor = getStockColor(item.stock, item.stockMinimo);
@@ -329,6 +385,18 @@ export default function Stock() {
           );
         })}
       </Box>
+
+      {/* Mensaje cuando no hay resultados */}
+      {filteredItems.length === 0 && searchTerm && (
+        <Box sx={{ textAlign: "center", py: 8 }}>
+          <Typography variant="h6" color="text.secondary" gutterBottom>
+            No se encontraron productos
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Intenta con otros términos de búsqueda
+          </Typography>
+        </Box>
+      )}
 
       {/* Dialog Agregar Stock */}
       <Dialog
@@ -437,6 +505,21 @@ export default function Stock() {
     </Button>
   </DialogActions>
 </Dialog>
+
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={4000}
+        onClose={() => setSnack({ ...snack, open: false })}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <MuiAlert
+          onClose={() => setSnack({ ...snack, open: false })}
+          severity={snack.severity}
+          variant="filled"
+        >
+          {snack.message}
+        </MuiAlert>
+      </Snackbar>
     </Box>
   );
 }

@@ -63,7 +63,8 @@ public class PedidoService(
                 var precio = prod?.Precio ?? 0m;
                 return precio * (decimal)i.Cantidad;
             }),
-            UsuarioId = p.UsuarioId
+            UsuarioId = p.UsuarioId,
+            VentaId = p.VentaId
         }).ToList();
     }
 
@@ -71,6 +72,13 @@ public class PedidoService(
     {
         var p = await repo.GetByIdAsync(id);
         if (p is null) return null;
+        
+        // Solo se puede pasar a Entregado si tiene venta generada
+        if (estado == EstadoPedido.Entregado && string.IsNullOrEmpty(p.VentaId))
+        {
+            throw new InvalidOperationException("No se puede marcar como Entregado un pedido sin venta generada");
+        }
+        
         p.Estado = estado;
         await repo.UpdateAsync(p);
         return await ToDetailDtoAsync(p);

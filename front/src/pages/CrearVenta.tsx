@@ -15,6 +15,7 @@ import {
   IconButton,
   Grid,
   Autocomplete,
+  createFilterOptions,
   Select,
   MenuItem,
   FormControl,
@@ -30,7 +31,7 @@ import { get as getProductos, type Producto } from "../api/productos";
 import { crearVenta, type MetodoPago } from "../api/ventas";
 import { getCajaActual, type CajaDto } from "../api/caja";
 import { formatName } from "../utils/formatters";
-import { medidaLabel } from "../utils/enums";
+import { medidaLabel, categoriaLabel } from "../utils/enums";
 import { pluralAuto } from "../utils/plural";
 
 interface ProductoVenta {
@@ -40,6 +41,7 @@ interface ProductoVenta {
   cantidad: number;
   subtotal: number;
   medida?: number;
+  stock: number;
 }
 
 const money = (n: number) =>
@@ -69,6 +71,7 @@ export default function CrearVenta() {
   const [cantidad, setCantidad] = useState<number>(1);
   const [metodoPago, setMetodoPago] = useState<string>("");
   const [observaciones, setObservaciones] = useState<string>("");
+  const [montoAbonado, setMontoAbonado] = useState<string>("");
 
   // snackbar
   const [snack, setSnack] = useState({
@@ -103,10 +106,49 @@ export default function CrearVenta() {
     })();
   }, []);
 
+  // limpiar monto abonado si cambia el método de pago
+  useEffect(() => {
+    if (metodoPago !== "Efectivo") {
+      setMontoAbonado("");
+    }
+  }, [metodoPago]);
+
+  // Filtro personalizado para búsqueda flexible sin guiones
+  const filterOptions = createFilterOptions<Producto>({
+    matchFrom: 'any',
+    stringify: (option) => {
+      // Crear string de búsqueda incluyendo categoría y descripción sin guiones
+      const categoria = categoriaLabel(option.categoria);
+      const desc = option.descripcion || "";
+      // Remover guiones y espacios extra para búsqueda flexible
+      return `${categoria} ${desc}`.replace(/-/g, " ").replace(/\s+/g, " ").toLowerCase();
+    },
+  });
+
   const handleAgregarProducto = () => {
     if (!productoSeleccionado || cantidad <= 0) return;
 
-    const { id, categoria, descripcion, precio, medida } = productoSeleccionado;
+    const { id, categoria, descripcion, precio, medida, stock } = productoSeleccionado;
+    
+    // Validar stock disponible
+    if (stock === 0) {
+      setSnack({
+        open: true,
+        message: "Este producto no tiene stock disponible.",
+        severity: "error",
+      });
+      return;
+    }
+    
+    if (cantidad > stock) {
+      setSnack({
+        open: true,
+        message: `Stock insuficiente. Solo hay ${stock} disponibles.`,
+        severity: "error",
+      });
+      return;
+    }
+
     const existe = productosVenta.find((p) => p.id === id);
 
     if (existe) {
@@ -128,6 +170,7 @@ export default function CrearVenta() {
           cantidad,
           subtotal: precio * cantidad,
           medida,
+          stock,
         },
       ]);
     }
@@ -159,12 +202,32 @@ export default function CrearVenta() {
     [productosVenta]
   );
 
+  const vuelto = useMemo(() => {
+    if (metodoPago !== "Efectivo" || !montoAbonado) return 0;
+    const abonado = parseFloat(montoAbonado);
+    if (isNaN(abonado)) return 0;
+    return Math.max(0, abonado - total);
+  }, [metodoPago, montoAbonado, total]);
+
+  const hayStockInsuficiente = useMemo(
+    () => productosVenta.some((p) => p.cantidad > p.stock),
+    [productosVenta]
+  );
+
   const handleFinalizarVenta = async () => {
     if (!productosVenta.length) {
       setSnack({
         open: true,
         message: "Agregá al menos un producto.",
         severity: "warning",
+      });
+      return;
+    }
+    if (hayStockInsuficiente) {
+      setSnack({
+        open: true,
+        message: "No hay stock suficiente para algunos productos.",
+        severity: "error",
       });
       return;
     }
@@ -245,8 +308,8 @@ export default function CrearVenta() {
       {cajaAbierta && (
         <Alert severity="info" sx={{ mb: 2 }}>
           <Typography variant="body2">
-            <strong>Sesión de Caja Activa:</strong> #{caja?.id} — Las ventas se
-            registrarán en esta sesión.
+            <strong>Sesión de Caja Activa</strong> — Las ventas se registrarán en
+            esta sesión.
           </Typography>
         </Alert>
       )}
@@ -263,37 +326,61 @@ export default function CrearVenta() {
                 Agregar Productos
               </Typography>
 
-              <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
-                <Autocomplete
-                  sx={{ flex: 1 }}
-                  options={productos}
-                  loading={loadingProductos}
-                  getOptionLabel={(o) =>
-                    `${formatName(o.categoria, o.descripcion)} - ${money(o.precio)}`
-                  }
-                  value={productoSeleccionado}
-                  onChange={(_, v) => setProductoSeleccionado(v)}
-                  renderInput={(params) => (
-                    <TextField {...params} label="Buscar producto" />
-                  )}
-                />
-                <TextField
-                  type="number"
-                  label="Cantidad"
-                  value={cantidad}
-                  onChange={(e) => setCantidad(Number(e.target.value))}
-                  sx={{ width: 120 }}
-                  inputProps={{ min: 1 }}
-                />
-                <Button
-                  variant="contained"
-                  onClick={handleAgregarProducto}
-                  disabled={!productoSeleccionado}
-                  startIcon={<Add />}
-                  sx={{ height: 56 }}
-                >
-                  Agregar
-                </Button>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
+                  <Autocomplete
+                    sx={{ flex: 1 }}
+                    options={productos}
+                    loading={loadingProductos}
+                    filterOptions={filterOptions}
+                    getOptionLabel={(o) =>
+                      `${formatName(o.categoria, o.descripcion)} - ${money(o.precio)}`
+                    }
+                    renderOption={(props, option) => (
+                      <li {...props}>
+                        <Box sx={{ display: "flex", flexDirection: "column", width: "100%" }}>
+                          <Typography variant="body2">
+                            {formatName(option.categoria, option.descripcion)} - {money(option.precio)}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Stock disponible: {option.stock}
+                          </Typography>
+                        </Box>
+                      </li>
+                    )}
+                    value={productoSeleccionado}
+                    onChange={(_, v) => setProductoSeleccionado(v)}
+                    renderInput={(params) => (
+                      <TextField {...params} label="Buscar producto" />
+                    )}
+                  />
+                  <TextField
+                    type="number"
+                    label="Cantidad"
+                    value={cantidad}
+                    onChange={(e) => setCantidad(Number(e.target.value))}
+                    sx={{ width: 120 }}
+                    inputProps={{ min: 1 }}
+                  />
+                  <Button
+                    variant="contained"
+                    onClick={handleAgregarProducto}
+                    disabled={
+                      !productoSeleccionado ||
+                      productoSeleccionado.stock === 0 ||
+                      cantidad > productoSeleccionado.stock
+                    }
+                    startIcon={<Add />}
+                    sx={{ height: 56 }}
+                  >
+                    Agregar
+                  </Button>
+                </Box>
+                {productoSeleccionado && cantidad > productoSeleccionado.stock && (
+                  <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+                    Stock disponible: {productoSeleccionado.stock}
+                  </Typography>
+                )}
               </Box>
             </CardContent>
           </Card>
@@ -335,7 +422,14 @@ export default function CrearVenta() {
                   ) : (
                     productosVenta.map((p) => (
                       <TableRow key={p.id}>
-                        <TableCell>{p.nombre}</TableCell>
+                        <TableCell>
+                          {p.nombre}
+                          {p.cantidad > p.stock && (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                              Stock disponible: {p.stock}
+                            </Typography>
+                          )}
+                        </TableCell>
                         <TableCell align="center">
                           <TextField
                             type="number"
@@ -397,6 +491,28 @@ export default function CrearVenta() {
                 </Select>
               </FormControl>
 
+              {metodoPago === "Efectivo" && (
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Monto abonado por el cliente"
+                  value={montoAbonado}
+                  onChange={(e) => setMontoAbonado(e.target.value)}
+                  sx={{ mb: 2 }}
+                  inputProps={{ min: 0, step: 0.01 }}
+                  helperText={
+                    montoAbonado && parseFloat(montoAbonado) < total
+                      ? "El monto abonado es menor al total"
+                      : vuelto > 0
+                        ? `Vuelto: ${money(vuelto)}`
+                        : ""
+                  }
+                  error={
+                    !!montoAbonado && parseFloat(montoAbonado) < total
+                  }
+                />
+              )}
+
               <TextField
                 fullWidth
                 multiline
@@ -428,6 +544,25 @@ export default function CrearVenta() {
                     {money(total)}
                   </Typography>
                 </Box>
+                {metodoPago === "Efectivo" && vuelto > 0 && (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      mt: 2,
+                      p: 2,
+                      bgcolor: "success.light",
+                      borderRadius: 1,
+                    }}
+                  >
+                    <Typography variant="h6" fontWeight={600}>
+                      Vuelto a devolver:
+                    </Typography>
+                    <Typography variant="h5" color="success.dark" fontWeight={700}>
+                      {money(vuelto)}
+                    </Typography>
+                  </Box>
+                )}
               </Box>
 
               <Button
@@ -435,7 +570,7 @@ export default function CrearVenta() {
                 variant="contained"
                 size="large"
                 onClick={handleFinalizarVenta}
-                disabled={productosVenta.length === 0 || !cajaAbierta}
+                disabled={productosVenta.length === 0 || !cajaAbierta || hayStockInsuficiente}
                 sx={{ mt: 2 }}
               >
                 Finalizar Venta
@@ -460,12 +595,13 @@ export default function CrearVenta() {
         autoHideDuration={3000}
         onClose={handleSnackClose}
         anchorOrigin={{ vertical: "top", horizontal: "right" }}
+        sx={{ zIndex: (t) => t.zIndex.modal + 100, mt: 8 }}
       >
         <MuiAlert
           onClose={handleSnackClose}
           severity={snack.severity}
           variant="filled"
-          sx={{ width: "100%" }}
+          sx={{ width: "100%", zIndex: (t) => t.zIndex.modal + 100 }}
         >
           {snack.message}
         </MuiAlert>

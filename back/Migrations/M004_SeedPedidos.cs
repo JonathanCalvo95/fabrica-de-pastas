@@ -79,7 +79,7 @@ public class M004_SeedPedidos : IMigration
             {
                 Id = ObjectId.GenerateNewId().ToString(),
                 Fecha = fecha,
-                Cliente = rand.Next(0, 3) == 0 ? $"Cliente {rand.Next(100, 999)}" : null,
+                Cliente = $"Cliente {rand.Next(100, 999)}",
                 Observaciones = rand.Next(0, 5) == 0 ? "Pedido de prueba" : null,
                 Estado = estado,
                 Items = items.Values.ToList(),

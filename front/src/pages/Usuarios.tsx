@@ -30,6 +30,7 @@ import {
   Person,
   Visibility,
   VisibilityOff,
+  Search,
 } from "@mui/icons-material";
 import { useEffect, useState } from "react";
 import {
@@ -43,6 +44,7 @@ import { TIPO_ROL_OPTIONS, tipoRolLabel, tipoRolColor } from "../utils/enums";
 
 export default function Usuarios() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [openCreate, setOpenCreate] = useState(false);
   const [openEdit, setOpenEdit] = useState<Usuario | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -155,21 +157,33 @@ export default function Usuarios() {
 
   const formatFecha = (iso?: string) => (iso ? iso.slice(0, 10) : "");
 
+  // Filtrar usuarios por término de búsqueda
+  const filteredUsuarios = usuarios.filter((u) => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return u.nombre.toLowerCase().includes(term);
+  });
+
   return (
     <Box sx={{ p: 4 }}>
       <Box
         sx={{
+          mb: 3,
           display: "flex",
+          flexDirection: { xs: "column", md: "row" },
           justifyContent: "space-between",
-          alignItems: "flex-start",
-          mb: 2,
+          alignItems: { xs: "flex-start", md: "center" },
+          gap: 2,
         }}
       >
         <Box>
-          <Typography variant="h4" sx={{ mb: 1, fontWeight: 600 }}>
+          <Typography
+            variant="h1"
+            sx={{ mb: 0.5, letterSpacing: -0.3, fontWeight: 700 }}
+          >
             Usuarios
           </Typography>
-          <Typography variant="body1" color="text.secondary">
+          <Typography variant="body2" color="text.secondary">
             Administra los usuarios del sistema
           </Typography>
         </Box>
@@ -182,6 +196,20 @@ export default function Usuarios() {
         </Button>
       </Box>
       {initialLoading && <LinearProgress sx={{ mb: 2 }} />}
+      <TextField
+        fullWidth
+        placeholder="Buscar usuarios por nombre..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        sx={{ mb: 3 }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <Search />
+            </InputAdornment>
+          ),
+        }}
+      />
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
@@ -194,7 +222,7 @@ export default function Usuarios() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {usuarios.map((u) => {
+            {filteredUsuarios.map((u) => {
               const toggling = loadingToggleId === u.id;
               return (
                 <TableRow key={u.id} hover>
@@ -240,7 +268,7 @@ export default function Usuarios() {
                 </TableRow>
               );
             })}
-            {usuarios.length === 0 && !initialLoading && (
+            {filteredUsuarios.length === 0 && !initialLoading && (
               <TableRow>
                 <TableCell colSpan={5}>
                   <Typography
@@ -248,7 +276,9 @@ export default function Usuarios() {
                     align="center"
                     sx={{ py: 4 }}
                   >
-                    No hay usuarios cargados.
+                    {searchTerm
+                      ? "No se encontraron usuarios con ese criterio."
+                      : "No hay usuarios cargados."}
                   </Typography>
                 </TableCell>
               </TableRow>
@@ -317,12 +347,13 @@ export default function Usuarios() {
         autoHideDuration={3200}
         onClose={() => setSnack((s) => ({ ...s, open: false }))}
         anchorOrigin={{ vertical: "top", horizontal: "right" }}
+        sx={{ zIndex: (t) => t.zIndex.modal + 100, mt: 8 }}
       >
         <Alert
           onClose={() => setSnack((s) => ({ ...s, open: false }))}
           severity={snack.severity}
           variant="filled"
-          sx={{ width: "100%" }}
+          sx={{ width: "100%", zIndex: (t) => t.zIndex.modal + 100 }}
         >
           {snack.message}
         </Alert>

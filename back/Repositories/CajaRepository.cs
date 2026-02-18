@@ -54,7 +54,7 @@ public class CajaRepository(MongoDbContext ctx) : ICajaRepository
         var filter = Builders<Venta>.Filter.And(
             Builders<Venta>.Filter.Eq(v => v.CajaId, cajaAbierta.Id),
             Builders<Venta>.Filter.Eq(v => v.MetodoPago, MetodoPago.Efectivo),
-            Builders<Venta>.Filter.Eq(v => v.Estado, EstadoVenta.Confirmada)
+            Builders<Venta>.Filter.Eq(v => v.Estado, EstadoVenta.Realizada)
         );
 
         var totales = await _ventas.Find(filter)

@@ -120,7 +120,7 @@ public class M003_SeedCajasVentas : IMigration
                     MetodoPago = metodo,
                     UsuarioId = ObjectId.GenerateNewId().ToString(),
                     CajaId = caja.Id,
-                    Estado = EstadoVenta.Confirmada
+                    Estado = EstadoVenta.Realizada
                 });
             }
 

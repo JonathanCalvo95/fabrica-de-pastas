@@ -12,6 +12,9 @@ import {
   TableHead,
   TableRow,
   Chip,
+  Stack,
+  Divider,
+  LinearProgress,
 } from "@mui/material";
 import {
   Inventory,
@@ -21,34 +24,21 @@ import {
   Payments,
   CalendarMonth,
   AccountBalanceWallet,
+  ArrowDropUp,
+  ArrowDropDown,
 } from "@mui/icons-material";
 import { alpha } from "@mui/material/styles";
 import { theme } from "../theme/Theme";
 import { getDashboard, type DashboardResponse } from "../api/dashboard";
 import { formatName } from "../utils/formatters";
 import { LineChart, BarChart, PieChart } from "@mui/x-charts";
-import { metodoPagoLabel } from "../utils/enums";
+import { metodoPagoLabel, MONTH, WEEK } from "../utils/enums";
 
 /* ========= helpers ========= */
-const MONTH = [
-  "Ene",
-  "Feb",
-  "Mar",
-  "Abr",
-  "May",
-  "Jun",
-  "Jul",
-  "Ago",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dic",
-];
-const WEEK = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 const money = (n: number) => `$${Number(n ?? 0).toLocaleString("es-AR")}`;
 const pctStr = (n?: number) =>
   typeof n === "number" ? `${n >= 0 ? "+" : ""}${n.toFixed(1)}%` : undefined;
-const trend = (n?: number) =>
+const getTrend = (n?: number) =>
   (Number(n ?? 0) >= 0 ? "up" : "down") as "up" | "down";
 
 /* ========= data hook ========= */
@@ -87,18 +77,47 @@ function useDashboard() {
 }
 
 /* ========= UI atoms ========= */
+
 function SectionTitle({
   icon,
-  children,
+  title,
+  subtitle,
 }: {
   icon: React.ElementType;
-  children: React.ReactNode;
+  title: string;
+  subtitle?: string;
 }) {
   const Icon = icon;
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
-      <Icon sx={{ color: "primary.main" }} />
-      <Typography variant="h3">{children}</Typography>
+    <Box sx={{ mb: 2 }}>
+      <Stack direction="row" spacing={1.5} alignItems="center">
+        <Box
+          sx={{
+            width: 32,
+            height: 32,
+            borderRadius: 1.5,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            bgcolor: (t) => alpha(t.palette.primary.main, 0.12),
+            color: "primary.main",
+          }}
+        >
+          <Icon sx={{ fontSize: 20 }} />
+        </Box>
+        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+          {title}
+        </Typography>
+      </Stack>
+      {subtitle && (
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ mt: 0.5, ml: 0.5 }}
+        >
+          {subtitle}
+        </Typography>
+      )}
     </Box>
   );
 }
@@ -109,51 +128,112 @@ function KpiCard({
   change,
   icon,
   trend,
+  description,
 }: {
   title: string;
   value: string | number;
   change?: string;
   icon: React.ElementType;
   trend: "up" | "down";
+  description?: string;
 }) {
   const Icon = icon;
+  const isUp = trend === "up";
+  const ChangeIcon = isUp ? ArrowDropUp : ArrowDropDown;
+
   return (
-    <Card sx={{ "&:hover": { boxShadow: 6 }, cursor: "pointer" }}>
-      <CardContent>
-        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
+    <Card
+      sx={{
+        position: "relative",
+        overflow: "hidden",
+        borderRadius: 3,
+        border: "1px solid",
+        borderColor: "divider",
+        bgcolor: "background.paper",
+        boxShadow: "0 18px 45px rgba(15,23,42,0.06)",
+        transition: "all .18s ease-out",
+        "&:before": {
+          content: '""',
+          position: "absolute",
+          inset: 0,
+          opacity: 0,
+          background: (t) =>
+            `linear-gradient(135deg, ${alpha(
+              t.palette.primary.main,
+              0.5
+            )}, transparent 60%)`,
+          transition: "opacity .18s ease-out",
+          pointerEvents: "none",
+        },
+        "&:hover": {
+          transform: "translateY(-3px)",
+          boxShadow: "0 24px 60px rgba(15,23,42,0.12)",
+        },
+        "&:hover:before": {
+          opacity: 1,
+        },
+      }}
+    >
+      <CardContent sx={{ position: "relative", zIndex: 1, py: 2.5 }}>
+        <Stack direction="row" justifyContent="space-between" spacing={2}>
           <Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ textTransform: "uppercase", letterSpacing: 0.6 }}
+            >
               {title}
             </Typography>
-            <Typography variant="h3" sx={{ mb: 1 }}>
+            <Typography
+              variant="h4"
+              sx={{ mt: 1, mb: 0.25, fontWeight: 700, lineHeight: 1.1 }}
+            >
               {value}
             </Typography>
-            {change && (
+            {description && (
               <Typography
                 variant="body2"
-                sx={{
-                  color: trend === "up" ? "success.main" : "error.main",
-                  fontWeight: 600,
-                }}
+                color="text.secondary"
+                sx={{ mt: 0.5 }}
               >
-                {change}
+                {description}
               </Typography>
+            )}
+            {change && (
+              <Chip
+                size="small"
+                icon={<ChangeIcon />}
+                label={`${change} vs mes anterior`}
+                sx={{
+                  mt: 1,
+                  pl: 0.5,
+                  bgcolor: (t) =>
+                    alpha(
+                      isUp ? t.palette.success.main : t.palette.error.main,
+                      0.08
+                    ),
+                  color: isUp ? "success.main" : "error.main",
+                  fontWeight: 500,
+                  borderRadius: 999,
+                }}
+              />
             )}
           </Box>
           <Box
             sx={{
-              width: 48,
-              height: 48,
-              borderRadius: 2,
-              bgcolor: (t) => alpha(t.palette.primary.main, 0.12),
+              width: 52,
+              height: 52,
+              borderRadius: 2.5,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              bgcolor: (t) => alpha(t.palette.primary.main, 0.16),
+              color: "primary.main",
             }}
           >
-            <Icon sx={{ color: "primary.main", fontSize: 28 }} />
+            <Icon sx={{ fontSize: 30 }} />
           </Box>
-        </Box>
+        </Stack>
       </CardContent>
     </Card>
   );
@@ -167,28 +247,26 @@ export default function Dashboard() {
     if (!data) return [];
     return [
       {
-        title: "Ventas del Mes",
+        title: "Ventas del mes",
         value: money(data.stats.ventasDelMes),
         change: pctStr(data.stats.ventasDelMesChangePct),
         icon: ShoppingCart,
-        trend: trend(data.stats.ventasDelMesChangePct),
+        trend: getTrend(data.stats.ventasDelMesChangePct),
       },
       {
-        title: "Productos Activos",
+        title: "Productos activos",
         value: data.stats.productosActivos,
-        change:
-          typeof data.stats.productosActivosChange === "number"
-            ? `${data.stats.productosActivosChange >= 0 ? "+" : ""}${data.stats.productosActivosChange}`
-            : undefined,
+        change: undefined,
         icon: Inventory,
-        trend: trend(data.stats.productosActivosChange),
+        trend: getTrend(data.stats.productosActivosChange),
+        description: "en el catálogo",
       },
       {
-        title: "Ticket Promedio",
+        title: "Ticket promedio",
         value: money(data.stats.ticketPromedio),
         change: pctStr(data.stats.ticketPromedioChangePct),
         icon: ReceiptLong,
-        trend: trend(data.stats.ticketPromedioChangePct),
+        trend: getTrend(data.stats.ticketPromedioChangePct),
       },
     ] as const;
   }, [data]);
@@ -333,7 +411,7 @@ export default function Dashboard() {
 
   const cashClosures = useMemo(() => {
     if (!data?.cashClosures?.length) return [];
-    return data.cashClosures.map((c: any) => ({
+    return data.cashClosures.slice(0, 5).map((c: any) => ({
       fecha: new Date(c.fecha).toLocaleDateString("es-AR"),
       apertura: money(Number(c.apertura ?? 0)),
       cierre: money(Number(c.cierre ?? 0)),
@@ -342,31 +420,108 @@ export default function Dashboard() {
     }));
   }, [data]);
 
+  /* ======= estados especiales ======= */
+
   if (loading)
     return (
-      <Box sx={{ p: 4 }}>
-        <Typography>Cargando dashboard…</Typography>
+      <Box
+        sx={{
+          minHeight: "60vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Box sx={{ maxWidth: 420, width: "100%" }}>
+          <Card
+            sx={{
+              borderRadius: 3,
+              border: "1px solid",
+              borderColor: "divider",
+              boxShadow: "0 20px 55px rgba(15,23,42,0.16)",
+            }}
+          >
+            <CardContent sx={{ py: 3 }}>
+              <Stack direction="row" spacing={2.5} alignItems="center">
+                <Box
+                  sx={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: "50%",
+                    bgcolor: (t) => alpha(t.palette.primary.main, 0.12),
+                    color: "primary.main",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <TrendingUp sx={{ fontSize: 30 }} />
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="subtitle1" fontWeight={600}>
+                    Preparando el dashboard…
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 0.5 }}
+                  >
+                    Estamos analizando los datos.
+                  </Typography>
+                  <LinearProgress
+                    sx={{
+                      mt: 2,
+                      borderRadius: 999,
+                      height: 6,
+                      bgcolor: (t) => alpha(t.palette.primary.main, 0.12),
+                      "& .MuiLinearProgress-bar": {
+                        borderRadius: 999,
+                      },
+                    }}
+                  />
+                </Box>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Box>
       </Box>
     );
+
   if (error)
     return (
-      <Box sx={{ p: 4 }}>
+      <Box>
         <Alert severity="error">{error}</Alert>
       </Box>
     );
+
   if (!data) return null;
 
   return (
-    <Box sx={{ p: 4 }}>
-      <Box sx={{ mb: 2 }}>
-        <Typography variant="h1" sx={{ mb: 1 }}>
-          Dashboard
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Análisis del negocio
-        </Typography>
+    <Box>
+      <Box
+        sx={{
+          mb: 3,
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          justifyContent: "space-between",
+          alignItems: { xs: "flex-start", md: "center" },
+          gap: 2,
+        }}
+      >
+        <Box>
+          <Typography
+            variant="h1"
+            sx={{ mb: 0.5, letterSpacing: -0.3, fontWeight: 700 }}
+          >
+            Dashboard
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Visión general de rendimiento.
+          </Typography>
+        </Box>
       </Box>
 
+      {/* KPIs */}
       <Box
         sx={{
           display: "grid",
@@ -375,8 +530,8 @@ export default function Dashboard() {
             sm: "repeat(2, 1fr)",
             md: "repeat(3, 1fr)",
           },
-          gap: 3,
-          mb: 2,
+          gap: 2.5,
+          mb: 4,
         }}
       >
         {stats.map((s) => (
@@ -387,15 +542,27 @@ export default function Dashboard() {
             change={s.change}
             icon={s.icon}
             trend={s.trend}
+            description={s.description}
           />
         ))}
       </Box>
 
-      <Card sx={{ mb: 4 }}>
-        <CardContent>
-          <SectionTitle icon={TrendingUp}>
-            Evolución de Ventas Mensual (Últimos meses)
-          </SectionTitle>
+      {/* Charts fila 1 */}
+      <Card
+        sx={{
+          mb: 3,
+          borderRadius: 3,
+          border: "1px solid",
+          borderColor: "divider",
+        }}
+      >
+        <CardContent sx={{ py: 2.5 }}>
+          <SectionTitle
+            icon={TrendingUp}
+            title="Evolución mensual de ventas"
+            subtitle="Comparación de ventas totales por mes."
+          />
+          <Divider sx={{ mb: 2.5 }} />
           <LineChart
             height={300}
             series={[
@@ -404,12 +571,6 @@ export default function Dashboard() {
                 label: "Ventas ($)",
                 color: theme.chartColors.ventasLine,
                 curve: "monotoneX",
-              },
-              {
-                data: monthlyEvolution.map((m) => m.promedio),
-                label: "Promedio diario ($)",
-                color: theme.chartColors.promedioLine,
-                showMark: false,
               },
             ]}
             xAxis={[
@@ -420,21 +581,31 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
+      {/* Charts fila 2 */}
       <Box
         sx={{
           display: "grid",
           gridTemplateColumns: { xs: "1fr", lg: "repeat(2, 1fr)" },
           gap: 3,
-          mb: 4,
+          mb: 3,
         }}
       >
-        <Card>
-          <CardContent>
-            <SectionTitle icon={CalendarMonth}>
-              Ventas por Día (Última semana)
-            </SectionTitle>
+        <Card
+          sx={{
+            borderRadius: 3,
+            border: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <CardContent sx={{ py: 2.5 }}>
+            <SectionTitle
+              icon={CalendarMonth}
+              title="Ventas por día"
+              subtitle="Comportamiento de ventas en la última semana."
+            />
+            <Divider sx={{ mb: 2.5 }} />
             <BarChart
-              height={280}
+              height={260}
               series={[
                 {
                   data: salesByDay.map((d) => d.ventas),
@@ -451,13 +622,22 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent>
-            <SectionTitle icon={Payments}>
-              Ingresos por Método de Pago (Últimos 30 días)
-            </SectionTitle>
+        <Card
+          sx={{
+            borderRadius: 3,
+            border: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <CardContent sx={{ py: 2.5 }}>
+            <SectionTitle
+              icon={Payments}
+              title="Ingresos por método de pago"
+              subtitle="Distribución de ingresos en los últimos 30 días."
+            />
+            <Divider sx={{ mb: 2.5 }} />
             <PieChart
-              height={300}
+              height={260}
               series={[
                 {
                   data: paymentMethods.map((pm, i) => ({
@@ -486,131 +666,202 @@ export default function Dashboard() {
         </Card>
       </Box>
 
-      <Card sx={{ mb: 4 }}>
-        <CardContent>
-          <SectionTitle icon={Inventory}>
-            Productos Más Vendidos (Mes actual)
-          </SectionTitle>
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>
-                    <strong>Producto</strong>
-                  </TableCell>
-                  <TableCell align="right">
-                    <strong>Cantidad</strong>
-                  </TableCell>
-                  <TableCell align="right">
-                    <strong>Ingresos</strong>
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {topProducts.map((item, index) => (
-                  <TableRow
-                    key={item.product + index}
-                    sx={{
-                      "&:hover": { bgcolor: "action.hover" },
-                      bgcolor:
-                        index === 0
-                          ? alpha(theme.palette.primary.main, 0.08)
-                          : "transparent",
-                    }}
-                  >
-                    <TableCell>
-                      <Typography fontWeight={index === 0 ? 600 : 400}>
-                        {item.product}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="right">{item.cantidad}</TableCell>
-                    <TableCell align="right">
-                      <Typography color="primary" fontWeight={500}>
-                        {item.ingresos}
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {topProducts.length === 0 && (
+      {/* Tablas lado a lado */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", lg: "repeat(2, 1fr)" },
+          gap: 3,
+        }}
+      >
+        {/* Top productos */}
+        <Card
+          sx={{
+            borderRadius: 3,
+            border: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <CardContent sx={{ py: 2.5 }}>
+            <SectionTitle
+              icon={Inventory}
+              title="Productos más vendidos"
+              subtitle="Top productos por ingresos en el mes actual."
+            />
+            <Divider sx={{ mb: 1.5 }} />
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
                   <TableRow>
-                    <TableCell colSpan={3}>
-                      <Typography color="text.secondary">
-                        Sin datos disponibles.
+                    <TableCell>
+                      <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                        PRODUCTO
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                        CANTIDAD
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                        INGRESOS
                       </Typography>
                     </TableCell>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
+                </TableHead>
+                <TableBody>
+                  {topProducts.map((item, index) => (
+                    <TableRow
+                      key={item.product + index}
+                      sx={{
+                        "&:hover": { bgcolor: "action.hover" },
+                        bgcolor:
+                          index === 0
+                            ? (t) => alpha(t.palette.primary.main, 0.04)
+                            : "transparent",
+                      }}
+                    >
+                      <TableCell>
+                        <Typography
+                          variant="body2"
+                          fontWeight={index === 0 ? 600 : 500}
+                        >
+                          {item.product}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body2">{item.cantidad}</Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography
+                          variant="body2"
+                          color="primary"
+                          fontWeight={600}
+                        >
+                          {item.ingresos}
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {topProducts.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={3}>
+                        <Typography color="text.secondary">
+                          Sin datos disponibles.
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardContent>
-          <SectionTitle icon={AccountBalanceWallet}>
-            Historial de Cierres de Caja (Recientes)
-          </SectionTitle>
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>
-                    <strong>Fecha</strong>
-                  </TableCell>
-                  <TableCell align="right">
-                    <strong>Apertura</strong>
-                  </TableCell>
-                  <TableCell align="right">
-                    <strong>Cierre</strong>
-                  </TableCell>
-                  <TableCell align="right">
-                    <strong>Diferencia</strong>
-                  </TableCell>
-                  <TableCell align="center">
-                    <strong>Estado</strong>
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {cashClosures.map((c) => (
-                  <TableRow
-                    key={c.fecha}
-                    sx={{ "&:hover": { bgcolor: "action.hover" } }}
-                  >
-                    <TableCell>{c.fecha}</TableCell>
-                    <TableCell align="right">{c.apertura}</TableCell>
-                    <TableCell align="right">
-                      <Typography fontWeight={500}>{c.cierre}</Typography>
+        {/* Cierres de caja */}
+        <Card
+          sx={{
+            borderRadius: 3,
+            border: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <CardContent sx={{ py: 2.5 }}>
+            <SectionTitle
+              icon={AccountBalanceWallet}
+              title="Historial de cierres de caja"
+              subtitle="Detalle de los últimos cierres registrados."
+            />
+            <Divider sx={{ mb: 1.5 }} />
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>
+                      <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                        FECHA
+                      </Typography>
                     </TableCell>
                     <TableCell align="right">
-                      <Typography color="success.main" fontWeight={600}>
-                        {c.diferencia}
+                      <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                        APERTURA
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                        CIERRE
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                        DIFERENCIA
                       </Typography>
                     </TableCell>
                     <TableCell align="center">
-                      <Chip
-                        label={c.estado === "ok" ? "OK" : "Diferencia"}
-                        size="small"
-                        color={c.estado === "ok" ? "success" : "warning"}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {cashClosures.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5}>
-                      <Typography color="text.secondary">
-                        Sin historial disponible.
+                      <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                        ESTADO
                       </Typography>
                     </TableCell>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
+                </TableHead>
+                <TableBody>
+                  {cashClosures.map((c) => (
+                    <TableRow
+                      key={c.fecha}
+                      sx={{
+                        "&:hover": { bgcolor: "action.hover" },
+                      }}
+                    >
+                      <TableCell>
+                        <Typography variant="body2">{c.fecha}</Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body2">{c.apertura}</Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body2" fontWeight={500}>
+                          {c.cierre}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography
+                          variant="body2"
+                          color={
+                            c.diferencia.includes("-")
+                              ? "error.main"
+                              : "success.main"
+                          }
+                          fontWeight={600}
+                        >
+                          {c.diferencia}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Chip
+                          label={c.estado === "ok" ? "OK" : "Diferencia"}
+                          size="small"
+                          color={c.estado === "ok" ? "success" : "warning"}
+                          sx={{ borderRadius: 999 }}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {cashClosures.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5}>
+                        <Typography color="text.secondary">
+                          Sin historial disponible.
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
+      </Box>
     </Box>
   );
 }

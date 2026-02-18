@@ -28,8 +28,8 @@ export interface LowStockDto {
   categoria: number;
   descripcion: string;
   medida: number;
-  stock: string;
-  stockMinimo: string;
+  stock: number;
+  stockMinimo: number;
 }
 
 // Nuevos tipos

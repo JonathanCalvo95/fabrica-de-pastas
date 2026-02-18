@@ -72,7 +72,7 @@ public class VentaService(
             MetodoPago = dto.MetodoPago,
             UsuarioId = usuarioId,
             CajaId = cajaId,
-            Estado = EstadoVenta.Confirmada
+            Estado = EstadoVenta.Realizada
         };
 
         await ventasRepo.AddAsync(venta);
@@ -110,7 +110,7 @@ public class VentaService(
 
     public async Task<List<Venta>> GetByDateRangeAsync(DateTime fromUtc, DateTime toUtc, EstadoVenta[]? estados = null)
     {
-        estados ??= [EstadoVenta.Confirmada, EstadoVenta.Anulada, EstadoVenta.Devuelta];
+        estados ??= [EstadoVenta.Realizada, EstadoVenta.Anulada];
         return await ventasRepo.GetByDateRangeAsync(fromUtc, toUtc, estados);
     }
 
@@ -123,8 +123,8 @@ public class VentaService(
         if (v.Estado == EstadoVenta.Anulada)
             return await GetByIdAsync(id) ?? throw new InvalidOperationException("Estado no disponible");
 
-        // Solo permitir anular confirmadas o devueltas? Permitimos confirmadas y devueltas
-        if (v.Estado != EstadoVenta.Confirmada && v.Estado != EstadoVenta.Devuelta)
+        // Solo permitir anular ventas realizadas
+        if (v.Estado != EstadoVenta.Realizada)
             throw new InvalidOperationException("La venta no puede ser anulada en su estado actual.");
 
         // Reponer stock por cada item

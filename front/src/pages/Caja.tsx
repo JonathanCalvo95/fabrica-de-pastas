@@ -20,7 +20,13 @@ import {
   Alert,
   LinearProgress,
   Grid,
+  TablePagination,
 } from "@mui/material";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs, { Dayjs } from "dayjs";
+import "dayjs/locale/es";
 import { Lock, LockOpen } from "@mui/icons-material";
 import {
   getCajaActual,
@@ -42,6 +48,16 @@ const EstadoChip = ({ value }: { value: EstadoCaja }) => {
 const money = (n: number) =>
   n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
 
+const formatFecha = (fecha: string | Date) => {
+  const d = new Date(fecha);
+  const f = d.toLocaleDateString("es-AR");
+  const h = d.toLocaleTimeString("es-AR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return `${f}, ${h}`;
+};
+
 const diff = (calc?: number | null, real?: number | null) =>
   calc != null && real != null ? real - calc : null;
 
@@ -56,6 +72,14 @@ export default function Caja() {
   const [abierta, setAbierta] = useState<CajaDto | null>(null);
   const [historial, setHistorial] = useState<CajaDto[]>([]);
 
+  // Filtros de fecha
+  const [fechaDesde, setFechaDesde] = useState<Dayjs | null>(null);
+  const [fechaHasta, setFechaHasta] = useState<Dayjs | null>(null);
+
+  // Paginación
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
   const [dlgAbrir, setDlgAbrir] = useState(false);
   const [dlgCerrar, setDlgCerrar] = useState(false);
 
@@ -67,6 +91,32 @@ export default function Caja() {
     if (!abierta) return 0;
     return abierta.montoInicial + ventasEfectivo;
   }, [abierta, ventasEfectivo]);
+
+  // Filtrar historial por fechas
+  const historialFiltrado = useMemo(() => {
+    if (!fechaDesde && !fechaHasta) return historial;
+
+    return historial.filter((sesion) => {
+      const fechaSesion = dayjs(sesion.apertura);
+      
+      if (fechaDesde) {
+        const desde = fechaDesde.startOf('day');
+        if (fechaSesion.isBefore(desde)) return false;
+      }
+      
+      if (fechaHasta) {
+        const hasta = fechaHasta.endOf('day');
+        if (fechaSesion.isAfter(hasta)) return false;
+      }
+      
+      return true;
+    });
+  }, [historial, fechaDesde, fechaHasta]);
+
+  // Resetear página cuando cambien los filtros
+  useEffect(() => {
+    setPage(0);
+  }, [fechaDesde, fechaHasta]);
 
   // Referencias para los campos de entrada
   const abrirInputRef = useRef<HTMLInputElement>(null);
@@ -137,20 +187,26 @@ export default function Caja() {
   };
 
   return (
-    <Box sx={{ p: 4 }}>
+    <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="es">
+      <Box sx={{ p: 4 }}>
       <Box
         sx={{
+          mb: 3,
           display: "flex",
+          flexDirection: { xs: "column", md: "row" },
           justifyContent: "space-between",
-          alignItems: "flex-start",
-          mb: 4,
+          alignItems: { xs: "flex-start", md: "center" },
+          gap: 2,
         }}
       >
         <Box>
-          <Typography variant="h1" sx={{ mb: 1 }}>
+          <Typography
+            variant="h1"
+            sx={{ mb: 0.5, letterSpacing: -0.3, fontWeight: 700 }}
+          >
             Gestión de Caja
           </Typography>
-          <Typography variant="body1" color="text.secondary">
+          <Typography variant="body2" color="text.secondary">
             Apertura, cierre y control de caja diaria
           </Typography>
         </Box>
@@ -190,10 +246,10 @@ export default function Caja() {
       {abierta && (
         <Alert severity="success" sx={{ mb: 4 }}>
           <Typography variant="body1" fontWeight={600}>
-            Caja Abierta – Sesión #{abierta.id}
+            Caja Abierta
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Apertura: {new Date(abierta.apertura).toLocaleString()} | Efectivo
+            Apertura: {formatFecha(abierta.apertura)} | Efectivo
             Inicial: {money(abierta.montoInicial)}
           </Typography>
         </Alert>
@@ -263,12 +319,59 @@ export default function Caja() {
         </Grid>
       )}
 
-      <Card>
+      <Card sx={{ overflow: "hidden" }}>
         <CardContent>
-          <Typography variant="h2" sx={{ mb: 3 }}>
-            Historial de Sesiones
-          </Typography>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 3, flexWrap: "wrap", gap: 2 }}>
+            <Typography variant="h2">
+              Historial de Sesiones
+            </Typography>
+            
+            <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
+              <DatePicker
+                label="Fecha de Apertura - Desde"
+                value={fechaDesde}
+                onChange={(newValue) => setFechaDesde(newValue)}
+                format="DD/MM/YYYY"
+                slotProps={{
+                  textField: {
+                    sx: { minWidth: 200 },
+                  },
+                }}
+              />
+              <DatePicker
+                label="Fecha de Apertura - Hasta"
+                value={fechaHasta}
+                onChange={(newValue) => setFechaHasta(newValue)}
+                format="DD/MM/YYYY"
+                slotProps={{
+                  textField: {
+                    sx: { minWidth: 200 },
+                  },
+                }}
+              />
+              {(fechaDesde || fechaHasta) && (
+                <Box sx={{ pt: 1 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => {
+                      setFechaDesde(null);
+                      setFechaHasta(null);
+                    }}
+                  >
+                    Limpiar Filtros
+                  </Button>
+                </Box>
+              )}
+            </Box>
+          </Box>
+        </CardContent>
 
+        {cargando ? (
+          <Box sx={{ p: 6, display: "flex", justifyContent: "center" }}>
+            <LinearProgress />
+          </Box>
+        ) : (
+          <>
           <TableContainer>
             <Table>
               <TableHead>
@@ -301,7 +404,16 @@ export default function Caja() {
               </TableHead>
 
               <TableBody>
-                {historial.map((s) => {
+                {historialFiltrado.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} align="center">
+                      <Typography color="text.secondary" sx={{ py: 4 }}>
+                        {fechaDesde || fechaHasta ? "No hay sesiones en el rango seleccionado" : "No hay sesiones registradas"}
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  historialFiltrado.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((s) => {
                   const d = diff(s.montoCalculado, s.montoReal);
                   return (
                     <TableRow
@@ -309,19 +421,31 @@ export default function Caja() {
                       sx={{ "&:hover": { bgcolor: "action.hover" } }}
                     >
                       <TableCell>
-                        {new Date(s.apertura).toLocaleString()}
+                        <Typography fontWeight={500}>
+                          {formatFecha(s.apertura)}
+                        </Typography>
                       </TableCell>
                       <TableCell>
-                        {s.cierre ? new Date(s.cierre).toLocaleString() : "-"}
-                      </TableCell>
-                      <TableCell>{money(s.montoInicial)}</TableCell>
-                      <TableCell>
-                        {s.montoCalculado != null
-                          ? money(s.montoCalculado)
-                          : "-"}
+                        <Typography color="text.secondary">
+                          {s.cierre ? formatFecha(s.cierre) : "-"}
+                        </Typography>
                       </TableCell>
                       <TableCell>
-                        {s.montoReal != null ? money(s.montoReal) : "-"}
+                        <Typography variant="h6" color="primary" fontWeight={600}>
+                          {money(s.montoInicial)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography color="text.secondary">
+                          {s.montoCalculado != null
+                            ? money(s.montoCalculado)
+                            : "-"}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography color="text.secondary">
+                          {s.montoReal != null ? money(s.montoReal) : "-"}
+                        </Typography>
                       </TableCell>
                       <TableCell>
                         {d == null ? (
@@ -346,14 +470,29 @@ export default function Caja() {
                       </TableCell>
                     </TableRow>
                   );
-                })}
+                })
+                )}
               </TableBody>
             </Table>
           </TableContainer>
-        </CardContent>
+          <TablePagination
+            component="div"
+            count={historialFiltrado.length}
+            page={page}
+            onPageChange={(_, newPage) => setPage(newPage)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(e) => {
+              setRowsPerPage(parseInt(e.target.value, 10));
+              setPage(0);
+            }}
+            rowsPerPageOptions={[5, 10, 25, 50]}
+            labelRowsPerPage="Filas por página:"
+            labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
+          />
+          </>
+        )}
       </Card>
 
-      {/* Abrir caja */}
       <Dialog
         open={dlgAbrir}
         onClose={() => setDlgAbrir(false)}
@@ -398,8 +537,7 @@ export default function Caja() {
         <DialogTitle>Cerrar Caja</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Sesión #{abierta?.id} – Apertura:{" "}
-            {abierta ? new Date(abierta.apertura).toLocaleString() : "-"}
+            Apertura: {abierta ? new Date(abierta.apertura).toLocaleString() : "-"}
           </Typography>
 
           <Box sx={{ bgcolor: "action.hover", p: 2, borderRadius: 2, mb: 3 }}>
@@ -493,6 +631,7 @@ export default function Caja() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+      </Box>
+    </LocalizationProvider>
   );
 }

@@ -4,6 +4,7 @@ declare module "@mui/material/styles" {
   interface Theme {
     customGradients: {
       pasta: string;
+      headerSoft: string;
     };
     chartColors: {
       ventasLine: string;
@@ -11,8 +12,6 @@ declare module "@mui/material/styles" {
       barVentas: string;
       pagoEfectivo: string;
       pagoTransferencia: string;
-      pagoDebito: string;
-      pagoCredito: string;
       pagoMercadoPago: string;
       pagoFallback: string;
     };
@@ -20,6 +19,7 @@ declare module "@mui/material/styles" {
   interface ThemeOptions {
     customGradients?: {
       pasta?: string;
+      headerSoft?: string;
     };
     chartColors?: {
       ventasLine?: string;
@@ -27,8 +27,6 @@ declare module "@mui/material/styles" {
       barVentas?: string;
       pagoEfectivo?: string;
       pagoTransferencia?: string;
-      pagoDebito?: string;
-      pagoCredito?: string;
       pagoMercadoPago?: string;
       pagoFallback?: string;
     };
@@ -43,15 +41,16 @@ declare module "@mui/material/styles" {
 
 export const theme = createTheme({
   palette: {
+    mode: "light",
     primary: {
-      main: "#D4A574", // Dorado pasta
+      main: "#D4A574", // dorado pasta
       light: "#E8C9A0",
       dark: "#B8905E",
       contrastText: "#2C1810",
     },
     secondary: {
-      main: "#F5E6D3",
-      dark: "#D4C4B0",
+      main: "#E9D7C0",
+      dark: "#D6C3AC",
       contrastText: "#2C1810",
     },
     error: {
@@ -69,19 +68,56 @@ export const theme = createTheme({
       paper: "#FFFFFF",
     },
     text: {
-      primary: "#2C1810",
+      primary: "#1F130D",
       secondary: "#8B7355",
     },
     accent: {
-      // opcional para chips/badges
       main: "#EADBC8",
+    },
+    divider: "#E3D5C3",
+    grey: {
+      50: "#F9FAFB",
+      100: "#F4F4F5",
+      200: "#E4E4E7",
+      300: "#D4D4D8",
+      400: "#A1A1AA",
+      500: "#71717A",
+      600: "#52525B",
+      700: "#3F3F46",
+      800: "#27272A",
+      900: "#18181B",
     },
   },
   typography: {
-    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-    h1: { fontSize: "2.5rem", fontWeight: 700 },
-    h2: { fontSize: "2rem", fontWeight: 600 },
-    h3: { fontSize: "1.5rem", fontWeight: 600 },
+    fontFamily:
+      '"Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    h1: {
+      fontSize: "2.25rem",
+      fontWeight: 700,
+      letterSpacing: -0.4,
+    },
+    h2: {
+      fontSize: "1.9rem",
+      fontWeight: 600,
+      letterSpacing: -0.3,
+    },
+    h3: {
+      fontSize: "1.6rem",
+      fontWeight: 600,
+      letterSpacing: -0.2,
+    },
+    h4: {
+      fontSize: "1.35rem",
+      fontWeight: 600,
+      letterSpacing: -0.1,
+    },
+    body1: { fontSize: "0.95rem", lineHeight: 1.6 },
+    body2: { fontSize: "0.9rem", lineHeight: 1.55 },
+    caption: {
+      fontSize: "0.75rem",
+      letterSpacing: 0.4,
+      textTransform: "uppercase",
+    },
     button: { textTransform: "none", fontWeight: 600 },
   },
   shape: { borderRadius: 12 },
@@ -91,22 +127,99 @@ export const theme = createTheme({
         root: {
           textTransform: "none",
           fontWeight: 500,
-          borderRadius: 8,
+          borderRadius: 999,
+          paddingInline: 16,
         },
       },
     },
     MuiCard: {
       styleOverrides: {
         root: {
-          boxShadow: "0 4px 10px rgba(0,0,0,0.06)",
           borderRadius: 12,
+          border: "1px solid #E3D5C3",
+          boxShadow: "0 14px 40px rgba(15,23,42,0.04)",
+          backgroundImage: "none",
         },
       },
     },
     MuiPaper: {
       styleOverrides: {
         root: {
-          boxShadow: "0 4px 10px rgba(0,0,0,0.06)",
+          boxShadow: "0 8px 24px rgba(15,23,42,0.06)",
+        },
+      },
+    },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          boxShadow: "none",
+          borderBottom: "1px solid #E3D5C3",
+          backgroundColor: "#F2E2CC",
+        },
+      },
+    },
+    MuiDrawer: {
+      styleOverrides: {
+        paper: {
+          borderRight: "1px solid #E3D5C3",
+          backgroundColor: "#F5E6D3",
+        },
+      },
+    },
+    MuiListItemButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 999,
+          paddingInline: 12,
+          marginInline: 8,
+          marginBlock: 4,
+          "& .MuiListItemIcon-root": {
+            minWidth: 32,
+          },
+          "&.Mui-selected": {
+            backgroundColor: "rgba(212,165,116,0.18)",
+            "& .MuiListItemIcon-root, & .MuiListItemText-primary": {
+              color: "#2C1810",
+              fontWeight: 600,
+            },
+          },
+        },
+      },
+    },
+    MuiListItemIcon: {
+      styleOverrides: {
+        root: {
+          color: "#8B7355",
+          minWidth: 28,
+          "& svg": {
+            fontSize: "1.1rem",
+          },
+        },
+      },
+    },
+    MuiListItemText: {
+      styleOverrides: {
+        primary: {
+          fontSize: "0.9rem",
+          fontWeight: 500,
+        },
+      },
+    },
+    MuiChip: {
+      styleOverrides: {
+        root: {
+          fontSize: "0.75rem",
+          fontWeight: 500,
+        },
+      },
+    },
+    MuiTableHead: {
+      styleOverrides: {
+        root: {
+          "& .MuiTableCell-root": {
+            backgroundColor: "#FAF2E6",
+            fontWeight: 600,
+          },
         },
       },
     },

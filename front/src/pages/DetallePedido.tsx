@@ -22,6 +22,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Snackbar,
+  Alert as MuiAlert,
 } from "@mui/material";
 import { ArrowBack } from "@mui/icons-material";
 import { get as getPedido, generarVenta } from "../api/pedidos";
@@ -29,6 +31,7 @@ import { getUsuario, type Usuario } from "../api/usuarios";
 import { getUserRole } from "../utils/auth";
 import { metodoPagoLabel, estadoPedidoInfo, medidaLabel } from "../utils/enums";
 import { pluralAuto } from "../utils/plural";
+import { formatName } from "../utils/formatters";
 
 const money = (n: number) =>
   n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
@@ -49,6 +52,11 @@ export default function DetallePedido() {
   const [metodoPago, setMetodoPago] = useState<number>(1);
   const [saving, setSaving] = useState(false);
   const [usuarioNombre, setUsuarioNombre] = useState<string | null>(null);
+  const [snack, setSnack] = useState({
+    open: false,
+    message: "",
+    severity: "error" as "success" | "error" | "info" | "warning",
+  });
 
   useEffect(() => {
     let alive = true;
@@ -97,16 +105,21 @@ export default function DetallePedido() {
     );
   }
 
-  const puedeGenerarVenta = !pedido.ventaId && pedido.estado !== 4; // not cancelado
+  const puedeGenerarVenta = !pedido.ventaId && pedido.estado === 2; // solo si está Confirmado
 
   const handleGenerarVenta = async () => {
     if (!id) return;
+    if (pedido.estado !== 2) {
+      setSnack({ open: true, message: "Solo se puede generar venta si el pedido está Confirmado", severity: "error" });
+      return;
+    }
     try {
       setSaving(true);
       const { ventaId } = await generarVenta(id, metodoPago as any);
       navigate(`/ventas/${ventaId}`);
     } catch (e: any) {
-      alert(e?.response?.data ?? e?.message ?? "No se pudo generar la venta");
+      const msg = e?.response?.data ?? e?.message ?? "No se pudo generar la venta";
+      setSnack({ open: true, message: msg, severity: "error" });
     } finally {
       setSaving(false);
     }
@@ -145,7 +158,7 @@ export default function DetallePedido() {
                   <TableBody>
                     {pedido.items.map((it: any) => (
                       <TableRow key={it.productoId}>
-                        <TableCell>{it.descripcion}</TableCell>
+                        <TableCell>{formatName(it.categoria, it.descripcion)}</TableCell>
                         <TableCell align="right">{it.cantidad}</TableCell>
                         <TableCell align="left">{pluralAuto(medidaLabel(it.medida), it.cantidad)}</TableCell>
                         <TableCell align="right">{money(it.precioUnitario)}</TableCell>
@@ -184,10 +197,33 @@ export default function DetallePedido() {
                 </Typography>
               </Box>
 
+              {pedido.cliente && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>Cliente</Typography>
+                  <Typography variant="body1" fontWeight={600}>
+                    {pedido.cliente}
+                  </Typography>
+                </Box>
+              )}
+
               <Box sx={{ mb: 2 }}>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>Estado</Typography>
                 {(() => { const est = estadoPedidoInfo(pedido.estado); return (<Box sx={{ mt: 1 }}><Chip label={est.label} color={est.color as any} size="small" /></Box>); })()}
               </Box>
+
+              {pedido.ventaId && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>Venta Generada</Typography>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => navigate(`/ventas/${pedido.ventaId}`)}
+                    sx={{ mt: 1 }}
+                  >
+                    Ver Venta
+                  </Button>
+                </Box>
+              )}
 
               <Divider sx={{ my: 2 }} />
 
@@ -216,6 +252,21 @@ export default function DetallePedido() {
           )}
         </Grid>
       </Grid>
+
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={4000}
+        onClose={() => setSnack({ ...snack, open: false })}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <MuiAlert
+          onClose={() => setSnack({ ...snack, open: false })}
+          severity={snack.severity}
+          variant="filled"
+        >
+          {snack.message}
+        </MuiAlert>
+      </Snackbar>
     </Box>
   );
 }
