@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Box,
   Card,
@@ -23,6 +23,10 @@ import {
   Select,
   MenuItem,
   TablePagination,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -35,6 +39,7 @@ import autoTable from "jspdf-autotable";
 
 import {
   getVentas,
+  getVentasByCajaId,
   getVenta,
   type VentaListItem,
   type MetodoPago,
@@ -82,6 +87,7 @@ const fmtFecha = (iso: string) => {
 // ===== Página =====
 export default function Ventas() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   // role guard: only Administrador and Vendedor can access this page
   useEffect(() => {
@@ -107,6 +113,7 @@ export default function Ventas() {
   const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [snack, setSnack] = useState<{ open: boolean; message: string; severity: "success" | "error" | "info" | "warning" }>({ open: false, message: "", severity: "success" });
+  const [dlgAnular, setDlgAnular] = useState<VentaListItem | null>(null);
 
   // Filtros
   const [fechaDesde, setFechaDesde] = useState<Dayjs | null>(null);
@@ -128,7 +135,10 @@ export default function Ventas() {
       setLoading(true);
       setError(null);
       try {
-        const data = await getVentas(50);
+        const cajaId = searchParams.get("cajaId");
+        const data = cajaId 
+          ? await getVentasByCajaId(cajaId)
+          : await getVentas(50);
         if (alive) setVentas(data);
       } catch (err: any) {
         if (alive) setError(err?.message ?? "Error al cargar ventas");
@@ -139,7 +149,7 @@ export default function Ventas() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [searchParams]);
 
   // Consultar caja abierta (usa /caja/current)
   useEffect(() => {
@@ -168,28 +178,29 @@ export default function Ventas() {
         totalHoy: 0,
         cantidadHoy: 0,
         promedio: 0,
-        pendientes: 0,
-        pendientesMonto: 0,
+        anuladasHoy: 0,
+        anuladasMontoHoy: 0,
       };
     const hoyStr = new Date().toLocaleDateString("en-CA");
     let totalHoy = 0;
     let cantidadHoy = 0;
-    let pendientes = 0;
-    let pendientesMonto = 0;
+    let anuladasHoy = 0;
+    let anuladasMontoHoy = 0;
 
     for (const v of ventas) {
       const vStr = new Date(v.fecha).toLocaleDateString("en-CA");
       if (vStr === hoyStr) {
         totalHoy += v.total;
         cantidadHoy++;
-      }
-      if (v.estado !== 1) {
-        pendientes++;
-        pendientesMonto += v.total;
+        // Contar ventas anuladas del día
+        if (v.estado === 2) {
+          anuladasHoy++;
+          anuladasMontoHoy += v.total;
+        }
       }
     }
     const promedio = cantidadHoy ? totalHoy / cantidadHoy : 0;
-    return { totalHoy, cantidadHoy, promedio, pendientes, pendientesMonto };
+    return { totalHoy, cantidadHoy, promedio, anuladasHoy, anuladasMontoHoy };
   }, [ventas]);
 
   // Filtrar ventas
@@ -328,17 +339,29 @@ export default function Ventas() {
             Ventas
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Registro de todas las transacciones
+            {searchParams.get("cajaId") 
+              ? "Ventas de la sesión de caja seleccionada" 
+              : "Registro de todas las transacciones"}
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          disabled={loadingCaja || !caja}
-          onClick={() => navigate("/ventas/crear")}
-        >
-          Nueva Venta
-        </Button>
+        <Box sx={{ display: "flex", gap: 1 }}>
+          {searchParams.get("cajaId") && (
+            <Button
+              variant="outlined"
+              onClick={() => navigate("/ventas")}
+            >
+              Ver Todas
+            </Button>
+          )}
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            disabled={loadingCaja || !caja}
+            onClick={() => navigate("/ventas/crear")}
+          >
+            Nueva Venta
+          </Button>
+        </Box>
       </Box>
 
       {/* Info de caja */}
@@ -396,13 +419,13 @@ export default function Ventas() {
         <Card>
           <CardContent>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-              Ventas no confirmadas
+              Ventas anuladas
             </Typography>
-            <Typography variant="h3" color="warning.main">
-              {resumen.pendientes}
+            <Typography variant="h3" color="error.main">
+              {resumen.anuladasHoy}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              {fmtMoney(resumen.pendientesMonto)} en proceso
+              {fmtMoney(resumen.anuladasMontoHoy)} hoy
             </Typography>
           </CardContent>
         </Card>
@@ -570,19 +593,7 @@ export default function Ventas() {
                             variant="outlined"
                             sx={{ ml: 1 }}
                             disabled={cancellingId === v.id}
-                            onClick={async () => {
-                              if (!confirm("¿Confirmás anular esta venta? Se repondrá el stock.")) return;
-                              try {
-                                setCancellingId(v.id);
-                                await anularVenta(v.id);
-                                setVentas(prev => prev.map(x => x.id === v.id ? { ...x, estado: 2 as EstadoVenta } : x));
-                                setSnack({ open: true, message: "Venta anulada y stock repuesto", severity: "success" });
-                              } catch (e: any) {
-                                setSnack({ open: true, message: e?.response?.data ?? e?.message ?? "No se pudo anular la venta", severity: "error" });
-                              } finally {
-                                setCancellingId(null);
-                              }
-                            }}
+                            onClick={() => setDlgAnular(v)}
                           >
                             Anular
                           </Button>
@@ -626,6 +637,79 @@ export default function Ventas() {
           </>
         )}
       </Card>
+
+      {/* Modal Anular Venta */}
+      <Dialog
+        open={!!dlgAnular}
+        onClose={() => setDlgAnular(null)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Anular Venta</DialogTitle>
+        <DialogContent>
+          {dlgAnular && (
+            <>
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                <Typography variant="body2" fontWeight={600}>
+                  ¿Confirmás anular esta venta?
+                </Typography>
+                <Typography variant="body2">
+                  El stock de los productos será repuesto.
+                </Typography>
+              </Alert>
+              
+              <Box sx={{ bgcolor: "action.hover", p: 2, borderRadius: 1, mb: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Fecha
+                </Typography>
+                <Typography variant="body1" fontWeight={500} gutterBottom>
+                  {fmtFecha(dlgAnular.fecha).fecha} • {fmtFecha(dlgAnular.fecha).hora}
+                </Typography>
+                
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  Total
+                </Typography>
+                <Typography variant="h5" color="primary" fontWeight={600} gutterBottom>
+                  {fmtMoney(dlgAnular.total)}
+                </Typography>
+                
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  Método de Pago
+                </Typography>
+                <Typography variant="body1">
+                  {metodoPagoLabel(dlgAnular.metodoPago)}
+                </Typography>
+              </Box>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDlgAnular(null)}>
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={cancellingId === dlgAnular?.id}
+            onClick={async () => {
+              if (!dlgAnular) return;
+              try {
+                setCancellingId(dlgAnular.id);
+                await anularVenta(dlgAnular.id);
+                setVentas(prev => prev.map(x => x.id === dlgAnular.id ? { ...x, estado: 2 as EstadoVenta } : x));
+                setSnack({ open: true, message: "Venta anulada y stock repuesto", severity: "success" });
+                setDlgAnular(null);
+              } catch (e: any) {
+                setSnack({ open: true, message: e?.response?.data ?? e?.message ?? "No se pudo anular la venta", severity: "error" });
+              } finally {
+                setCancellingId(null);
+              }
+            }}
+          >
+            {cancellingId === dlgAnular?.id ? "Anulando..." : "Confirmar Anulación"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={snack.open}

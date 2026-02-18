@@ -25,6 +25,14 @@ public class VentaRepository(MongoDbContext ctx) : IVentaRepository
                          .ToListAsync();
     }
 
+    public async Task<List<Venta>> GetByCajaIdAsync(string cajaId)
+    {
+        var f = Builders<Venta>.Filter.Eq(x => x.CajaId, cajaId);
+        return await _col.Find(f)
+                         .SortByDescending(x => x.Fecha)
+                         .ToListAsync();
+    }
+
     public async Task<List<Venta>> GetByDateRangeAsync(DateTime fromUtc, DateTime toUtc, EstadoVenta[]? estados = null)
     {
         var builder = Builders<Venta>.Filter;

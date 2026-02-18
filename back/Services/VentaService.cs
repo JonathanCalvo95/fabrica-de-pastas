@@ -104,7 +104,27 @@ public class VentaService(
             Items = v.Items,
             Total = v.Total,
             MetodoPago = v.MetodoPago,
-            Estado = v.Estado
+            Estado = v.Estado,
+            CajaId = v.CajaId
+        }).ToList();
+    }
+
+    public async Task<List<VentaListItemDto>> GetByCajaIdAsync(string cajaId)
+    {
+        if (string.IsNullOrWhiteSpace(cajaId))
+            throw new ArgumentException("CajaId inválido", nameof(cajaId));
+
+        var list = await ventasRepo.GetByCajaIdAsync(cajaId);
+
+        return list.Select(v => new VentaListItemDto
+        {
+            Id = v.Id,
+            Fecha = v.Fecha,
+            Items = v.Items,
+            Total = v.Total,
+            MetodoPago = v.MetodoPago,
+            Estado = v.Estado,
+            CajaId = v.CajaId
         }).ToList();
     }
 

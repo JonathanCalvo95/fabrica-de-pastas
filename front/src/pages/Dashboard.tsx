@@ -798,11 +798,6 @@ export default function Dashboard() {
                         DIFERENCIA
                       </Typography>
                     </TableCell>
-                    <TableCell align="center">
-                      <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                        ESTADO
-                      </Typography>
-                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -836,14 +831,6 @@ export default function Dashboard() {
                         >
                           {c.diferencia}
                         </Typography>
-                      </TableCell>
-                      <TableCell align="center">
-                        <Chip
-                          label={c.estado === "ok" ? "OK" : "Diferencia"}
-                          size="small"
-                          color={c.estado === "ok" ? "success" : "warning"}
-                          sx={{ borderRadius: 999 }}
-                        />
                       </TableCell>
                     </TableRow>
                   ))}

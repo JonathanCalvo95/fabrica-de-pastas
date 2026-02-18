@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   Card,
@@ -21,13 +22,17 @@ import {
   LinearProgress,
   Grid,
   TablePagination,
+  FormControlLabel,
+  Checkbox,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs, { Dayjs } from "dayjs";
 import "dayjs/locale/es";
-import { Lock, LockOpen } from "@mui/icons-material";
+import { Lock, LockOpen, Receipt } from "@mui/icons-material";
 import {
   getCajaActual,
   getHistorialCaja,
@@ -65,6 +70,7 @@ const diffColor = (d: number) =>
   d === 0 ? "success.main" : d > 0 ? "info.main" : "error.main";
 
 export default function Caja() {
+  const navigate = useNavigate();
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [ventasEfectivo, setVentasEfectivo] = useState(0);
@@ -75,6 +81,7 @@ export default function Caja() {
   // Filtros de fecha
   const [fechaDesde, setFechaDesde] = useState<Dayjs | null>(null);
   const [fechaHasta, setFechaHasta] = useState<Dayjs | null>(null);
+  const [soloDiferenciaNegativa, setSoloDiferenciaNegativa] = useState(false);
 
   // Paginación
   const [page, setPage] = useState(0);
@@ -92,31 +99,44 @@ export default function Caja() {
     return abierta.montoInicial + ventasEfectivo;
   }, [abierta, ventasEfectivo]);
 
-  // Filtrar historial por fechas
+  // Filtrar historial por fechas y diferencia
   const historialFiltrado = useMemo(() => {
-    if (!fechaDesde && !fechaHasta) return historial;
+    let resultado = historial;
 
-    return historial.filter((sesion) => {
-      const fechaSesion = dayjs(sesion.apertura);
-      
-      if (fechaDesde) {
-        const desde = fechaDesde.startOf('day');
-        if (fechaSesion.isBefore(desde)) return false;
-      }
-      
-      if (fechaHasta) {
-        const hasta = fechaHasta.endOf('day');
-        if (fechaSesion.isAfter(hasta)) return false;
-      }
-      
-      return true;
-    });
-  }, [historial, fechaDesde, fechaHasta]);
+    // Filtro por fechas
+    if (fechaDesde || fechaHasta) {
+      resultado = resultado.filter((sesion) => {
+        const fechaSesion = dayjs(sesion.apertura);
+        
+        if (fechaDesde) {
+          const desde = fechaDesde.startOf('day');
+          if (fechaSesion.isBefore(desde)) return false;
+        }
+        
+        if (fechaHasta) {
+          const hasta = fechaHasta.endOf('day');
+          if (fechaSesion.isAfter(hasta)) return false;
+        }
+        
+        return true;
+      });
+    }
+
+    // Filtro por diferencia negativa
+    if (soloDiferenciaNegativa) {
+      resultado = resultado.filter((sesion) => {
+        const diferencia = diff(sesion.montoCalculado, sesion.montoReal);
+        return diferencia != null && diferencia < 0;
+      });
+    }
+
+    return resultado;
+  }, [historial, fechaDesde, fechaHasta, soloDiferenciaNegativa]);
 
   // Resetear página cuando cambien los filtros
   useEffect(() => {
     setPage(0);
-  }, [fechaDesde, fechaHasta]);
+  }, [fechaDesde, fechaHasta, soloDiferenciaNegativa]);
 
   // Referencias para los campos de entrada
   const abrirInputRef = useRef<HTMLInputElement>(null);
@@ -326,7 +346,7 @@ export default function Caja() {
               Historial de Sesiones
             </Typography>
             
-            <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
+            <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start", flexWrap: "wrap" }}>
               <DatePicker
                 label="Fecha de Apertura - Desde"
                 value={fechaDesde}
@@ -349,13 +369,25 @@ export default function Caja() {
                   },
                 }}
               />
-              {(fechaDesde || fechaHasta) && (
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={soloDiferenciaNegativa}
+                    onChange={(e) => setSoloDiferenciaNegativa(e.target.checked)}
+                    color="error"
+                  />
+                }
+                label="Solo con faltante"
+                sx={{ pt: 1 }}
+              />
+              {(fechaDesde || fechaHasta || soloDiferenciaNegativa) && (
                 <Box sx={{ pt: 1 }}>
                   <Button
                     variant="outlined"
                     onClick={() => {
                       setFechaDesde(null);
                       setFechaHasta(null);
+                      setSoloDiferenciaNegativa(false);
                     }}
                   >
                     Limpiar Filtros
@@ -386,10 +418,10 @@ export default function Caja() {
                     <strong>Efectivo Inicial</strong>
                   </TableCell>
                   <TableCell>
-                    <strong>Efectivo Calculado</strong>
+                    <strong>Efectivo en Caja</strong>
                   </TableCell>
                   <TableCell>
-                    <strong>Efectivo en Caja</strong>
+                    <strong>Efectivo de Ventas</strong>
                   </TableCell>
                   <TableCell>
                     <strong>Diferencia</strong>
@@ -400,13 +432,16 @@ export default function Caja() {
                   <TableCell>
                     <strong>Observaciones</strong>
                   </TableCell>
+                  <TableCell align="center">
+                    <strong>Acciones</strong>
+                  </TableCell>
                 </TableRow>
               </TableHead>
 
               <TableBody>
                 {historialFiltrado.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} align="center">
+                    <TableCell colSpan={9} align="center">
                       <Typography color="text.secondary" sx={{ py: 4 }}>
                         {fechaDesde || fechaHasta ? "No hay sesiones en el rango seleccionado" : "No hay sesiones registradas"}
                       </Typography>
@@ -437,14 +472,14 @@ export default function Caja() {
                       </TableCell>
                       <TableCell>
                         <Typography color="text.secondary">
-                          {s.montoCalculado != null
-                            ? money(s.montoCalculado)
-                            : "-"}
+                          {s.montoReal != null ? money(s.montoReal) : "-"}
                         </Typography>
                       </TableCell>
                       <TableCell>
                         <Typography color="text.secondary">
-                          {s.montoReal != null ? money(s.montoReal) : "-"}
+                          {s.montoCalculado != null
+                            ? money(s.montoCalculado)
+                            : "-"}
                         </Typography>
                       </TableCell>
                       <TableCell>
@@ -467,6 +502,17 @@ export default function Caja() {
                         <Typography variant="body2" color="text.secondary">
                           {s.observaciones || "-"}
                         </Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Tooltip title="Ver ventas de esta sesión">
+                          <IconButton
+                            size="small"
+                            color="primary"
+                            onClick={() => navigate(`/ventas?cajaId=${s.id}`)}
+                          >
+                            <Receipt fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                       </TableCell>
                     </TableRow>
                   );

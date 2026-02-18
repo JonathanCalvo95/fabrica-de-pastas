@@ -11,4 +11,5 @@ public class VentaListItemDto
     public decimal Total { get; set; }
     public MetodoPago MetodoPago { get; set; }
     public EstadoVenta Estado { get; set; }
+    public string? CajaId { get; set; }
 }

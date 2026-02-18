@@ -10,6 +10,7 @@ export type VentaListItem = {
   total: number;
   metodoPago: MetodoPago;
   estado: EstadoVenta;
+  cajaId?: string;
 };
 
 export interface VentaCreate {
@@ -51,6 +52,11 @@ export const getVentas = async (take = 50) => {
   const { data } = await api.get<VentaListItem[]>(`/ventas`, {
     params: { take },
   });
+  return data;
+};
+
+export const getVentasByCajaId = async (cajaId: string) => {
+  const { data } = await api.get<VentaListItem[]>(`/ventas/caja/${cajaId}`);
   return data;
 };
 

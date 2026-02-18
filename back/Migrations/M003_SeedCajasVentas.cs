@@ -46,11 +46,12 @@ public class M003_SeedCajasVentas : IMigration
 
             var apertura = day.AddHours(9);
             var cierre = day.AddHours(20);
+            var montoInicialAleatorio = (decimal)(rand.Next(5000, 15000));
             var caja = new Caja
             {
                 Id = ObjectId.GenerateNewId().ToString(), // asegurar Id antes de usar en ventas
                 Apertura = apertura,
-                MontoInicial = 0,
+                MontoInicial = montoInicialAleatorio,
                 Estado = EstadoCaja.Abierta,
                 UsuarioId = ObjectId.GenerateNewId().ToString(),
                 Observaciones = "Seed (simulada)"
@@ -59,7 +60,7 @@ public class M003_SeedCajasVentas : IMigration
 
             bool isSunday = apertura.DayOfWeek == DayOfWeek.Sunday;
             int ventasCount = isSunday ? rand.Next(3, 10) : rand.Next(6, 18);
-            decimal totalDia = 0m;
+            decimal totalDiaEfectivo = 0m; // Solo ventas en efectivo
 
             for (int i = 0; i < ventasCount; i++)
             {
@@ -110,8 +111,14 @@ public class M003_SeedCajasVentas : IMigration
 
                 var items = itemsMap.Values.ToList();
                 var total = items.Sum(x => x.Monto);
-                totalDia += total;
                 var metodo = (MetodoPago)rand.Next(1, 4);
+                
+                // Solo sumar a efectivo del día si la venta es en efectivo
+                if (metodo == MetodoPago.Efectivo)
+                {
+                    totalDiaEfectivo += total;
+                }
+                
                 ventasToInsert.Add(new Venta
                 {
                     Fecha = hora,
@@ -125,10 +132,21 @@ public class M003_SeedCajasVentas : IMigration
             }
 
             // Actualización final de caja se hará luego con BulkWrite
-            var delta = (decimal)((rand.NextDouble() - 0.5) * 0.02);
+            var montoEsperado = montoInicialAleatorio + totalDiaEfectivo;
             caja.Cierre = cierre;
-            caja.MontoCalculado = Math.Round(totalDia, 2);
-            caja.MontoReal = Math.Round(totalDia * (1 + delta), 2);
+            caja.MontoCalculado = Math.Round(montoEsperado, 2);
+            
+            // 70% de las cajas sin diferencia, 30% con pequeña diferencia
+            if (rand.NextDouble() < 0.70)
+            {
+                caja.MontoReal = caja.MontoCalculado; // Sin diferencia
+            }
+            else
+            {
+                var delta = (decimal)((rand.NextDouble() - 0.5) * 0.02);
+                caja.MontoReal = Math.Round(montoEsperado * (1 + delta), 2);
+            }
+            
             caja.Estado = EstadoCaja.Cerrada;
 
             generatedDays++;

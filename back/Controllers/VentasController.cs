@@ -16,6 +16,11 @@ public class VentasController(IVentaService service) : BaseApiController
     public async Task<IActionResult> GetLast([FromQuery] int take = 50)
         => Ok(await service.GetLastAsync(take));
 
+    [HttpGet("caja/{cajaId}")]
+    [ProducesResponseType(typeof(IEnumerable<VentaListItemDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetByCajaId(string cajaId)
+        => Ok(await service.GetByCajaIdAsync(cajaId));
+
     [HttpGet("{id}")]
     [ProducesResponseType(typeof(VentaDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
